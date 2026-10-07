@@ -1,7 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
-import { kullaniciOlustur, sifreSifirla, type FormDurumu } from "@/app/yonetim/actions";
+import {
+  kullaniciGuncelle,
+  kullaniciOlustur,
+  sifreSifirla,
+  type FormDurumu,
+} from "@/app/yonetim/actions";
 import { DurumMesaji, GonderButonu, MetinAlani } from "./Alanlar";
 
 export function KullaniciOlusturFormu({ institutionId }: { institutionId: string }) {
@@ -33,6 +38,46 @@ export function KullaniciOlusturFormu({ institutionId }: { institutionId: string
       <DurumMesaji durum={durum} />
       <div className="border-t border-cerceve-soluk pt-4">
         <GonderButonu bekliyor={bekliyor} yazi="Hesabı oluştur" bekleyenYazi="Oluşturuluyor…" />
+      </div>
+    </form>
+  );
+}
+
+export function KullaniciDuzenleFormu({
+  userId,
+  adSoyad,
+  kullaniciAdi,
+}: {
+  userId: string;
+  adSoyad: string;
+  kullaniciAdi: string;
+}) {
+  const [durum, formAction, bekliyor] = useActionState<FormDurumu, FormData>(kullaniciGuncelle, {});
+
+  return (
+    <form action={formAction} className="space-y-3">
+      <input type="hidden" name="userId" value={userId} />
+      <div className="grid gap-2 sm:grid-cols-2">
+        <MetinAlani
+          ad="adSoyad"
+          alanId={`adSoyad-${userId}`}
+          etiket="Ad soyad"
+          gerekli
+          varsayilan={adSoyad}
+        />
+        <MetinAlani
+          ad="kullaniciAdi"
+          alanId={`kullaniciAdi-${userId}`}
+          etiket="Kullanıcı adı"
+          gerekli
+          varsayilan={kullaniciAdi}
+        />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="submit" disabled={bekliyor} className="btn btn-ikincil btn-kucuk">
+          {bekliyor ? "Kaydediliyor…" : "Hesabı güncelle"}
+        </button>
+        <DurumMesaji durum={durum} />
       </div>
     </form>
   );

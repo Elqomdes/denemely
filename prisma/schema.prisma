@@ -9,8 +9,7 @@ datasource db {
   url      = env("DENEMELY_DATABASE_URL")
 }
 
-// Not: SQLite connector'u enum desteklemedigi icin rol String tutuluyor.
-// Gecerli degerler lib/auth/roller.ts icinde tanimli.
+// Rol String tutuluyor; gecerli degerler lib/auth/roller.ts icinde tanimli.
 
 /// Denemely'yi kullanan kurum (dershane, kurs, okul)
 model Institution {
@@ -29,6 +28,8 @@ model Institution {
   ogrenciler   Student[]
   denemeler    Exam[]
   birlestirmeYoksaymalari StudentMergeIgnore[]
+  takmaAdlar   StudentNameAlias[]
+  veliKarneleri VeliKarne[]
 }
 
 /// "Bu iki kayit ayni kisi degil" isareti; birlestirme onerisi listesini temiz tutar.
@@ -90,12 +91,13 @@ model Student {
 /// Ogrencinin optik formda kodladigi diger ad yazimlari.
 /// Birlestirme sonrasi yeni denemelerde ayni kopya kaydin tekrar olusmasini onler.
 model StudentNameAlias {
-  id            String   @id @default(cuid())
+  id            String      @id @default(cuid())
   institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   studentId     String
-  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student       Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
   normalizedAd  String
-  createdAt     DateTime @default(now())
+  createdAt     DateTime    @default(now())
 
   @@unique([institutionId, normalizedAd])
   @@index([studentId])
@@ -237,14 +239,15 @@ model AnswerSheet {
 
 /// Veliye gonderilen karne baglantisi. Adres yalnizca bir ogrencinin bir denemesini acar.
 model VeliKarne {
-  id            String   @id @default(cuid())
-  token         String   @unique
+  id            String      @id @default(cuid())
+  token         String      @unique
   institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   studentId     String
-  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student       Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
   examId        String
-  exam          Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
-  createdAt     DateTime @default(now())
+  exam          Exam        @relation(fields: [examId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
 
   @@unique([studentId, examId])
   @@index([institutionId])

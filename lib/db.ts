@@ -12,11 +12,7 @@ const globalForPrisma = globalThis as unknown as {
 
 function baglantiVarMi(): boolean {
   const url = process.env.DENEMELY_DATABASE_URL?.trim() ?? "";
-  return (
-    url.startsWith("postgresql://") ||
-    url.startsWith("postgres://") ||
-    url.startsWith("file:")
-  );
+  return url.startsWith("postgresql://") || url.startsWith("postgres://");
 }
 
 function prismaIstemcisi(): PrismaClient {
@@ -43,17 +39,7 @@ export const prisma = new Proxy({} as PrismaClient, {
   },
 });
 
-const sqliteMi = (process.env.DENEMELY_DATABASE_URL ?? "").startsWith("file:");
-
-/** SQLite okumalarini kilit beklemeden yapar. Postgres'te bir sey yapmaz. */
 export const veritabaniHazir =
-  globalForPrisma.veritabaniHazir ??
-  (sqliteMi
-    ? prisma
-        .$queryRawUnsafe("PRAGMA journal_mode=WAL")
-        .then(() => prisma.$queryRawUnsafe("PRAGMA synchronous=NORMAL"))
-        .then(() => prisma.$queryRawUnsafe("PRAGMA cache_size=-16000"))
-        .then(() => undefined)
-    : Promise.resolve());
+  globalForPrisma.veritabaniHazir ?? Promise.resolve();
 
 globalForPrisma.veritabaniHazir = veritabaniHazir;

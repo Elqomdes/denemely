@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import { Etiket, Kart } from "@/components/Kutu";
 import { OlcutSerit, SayfaUstu } from "@/components/SayfaUstu";
 import { KurumDuzenleFormu } from "@/components/yonetim/KurumFormlari";
-import { KullaniciOlusturFormu, SifreSifirlaFormu } from "@/components/yonetim/KullaniciFormlari";
+import {
+  KullaniciDuzenleFormu,
+  KullaniciOlusturFormu,
+  SifreSifirlaFormu,
+} from "@/components/yonetim/KullaniciFormlari";
 import { superadminGerekli } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db";
 import { kisaTarih, net, tamSayi } from "@/lib/format";
@@ -34,6 +38,7 @@ export default async function KurumDetaySayfasi({
       il: true,
       ilce: true,
       logoUrl: true,
+      notlar: true,
       aktif: true,
       createdAt: true,
       kullanicilar: {
@@ -56,7 +61,7 @@ export default async function KurumDetaySayfasi({
     where: { institutionId: kurum.id },
     orderBy: { tarih: "desc" },
     take: 5,
-    select: { id: true, ad: true, tarih: true, _count: { select: { sonuclar: true } } },
+    select: { id: true, ad: true, tarih: true, sinavTuru: true, _count: { select: { sonuclar: true } } },
   });
 
   const ortalama = await prisma.examResult.aggregate({
@@ -87,6 +92,16 @@ export default async function KurumDetaySayfasi({
       {durum === "olusturuldu" ? (
         <p className="uyari-serit border-emerald-200 bg-emerald-50 text-emerald-800">
           Kurum oluşturuldu. Şimdi rehberlik öğretmeni veya yetkili için bir hesap açın.
+        </p>
+      ) : null}
+      {durum === "guncellendi" ? (
+        <p className="uyari-serit border-emerald-200 bg-emerald-50 text-emerald-800">
+          Kurum bilgileri kaydedildi. Giriş sayfası, panel adı ve logo bu kayda göre güncellenir.
+        </p>
+      ) : null}
+      {durum === "hesap-guncellendi" ? (
+        <p className="uyari-serit border-emerald-200 bg-emerald-50 text-emerald-800">
+          Yetkili hesabının adı güncellendi.
         </p>
       ) : null}
 
@@ -151,6 +166,11 @@ export default async function KurumDetaySayfasi({
                   </form>
                 </div>
 
+                <KullaniciDuzenleFormu
+                  userId={kullanici.id}
+                  adSoyad={kullanici.adSoyad}
+                  kullaniciAdi={kullanici.kullaniciAdi}
+                />
                 <SifreSifirlaFormu userId={kullanici.id} kullaniciAdi={kullanici.kullaniciAdi} />
               </li>
             ))}
@@ -168,6 +188,7 @@ export default async function KurumDetaySayfasi({
             <thead>
               <tr>
                 <th>Deneme</th>
+                <th>Tür</th>
                 <th>Tarih</th>
                 <th className="sayi">Katılım</th>
               </tr>
@@ -176,6 +197,9 @@ export default async function KurumDetaySayfasi({
               {denemeler.map((deneme) => (
                 <tr key={deneme.id}>
                   <td className="font-medium text-slate-800">{deneme.ad}</td>
+                  <td>
+                    <Etiket ton="marka">{deneme.sinavTuru}</Etiket>
+                  </td>
                   <td className="text-slate-600">{kisaTarih(deneme.tarih)}</td>
                   <td className="sayi text-slate-600">{tamSayi(deneme._count.sonuclar)}</td>
                 </tr>

@@ -1,4 +1,4 @@
-/** SQLite enum desteklemedigi icin roller burada sabit olarak tutuluyor. */
+/** Hesap rolleri. Veritabaninda String olarak tutulur. */
 export const ROLLER = {
   SUPERADMIN: "SUPERADMIN",
   KURUM_YETKILISI: "KURUM_YETKILISI",

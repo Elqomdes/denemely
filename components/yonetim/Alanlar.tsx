@@ -2,6 +2,7 @@ import type { FormDurumu } from "@/app/yonetim/actions";
 
 export function MetinAlani({
   ad,
+  alanId,
   etiket,
   tur = "text",
   varsayilan,
@@ -9,8 +10,12 @@ export function MetinAlani({
   ipucu,
   yerTutucu,
   enAzUzunluk,
+  enCokUzunluk,
+  cokSatir = false,
+  satir = 4,
 }: {
   ad: string;
+  alanId?: string;
   etiket: string;
   tur?: "text" | "password" | "url";
   varsayilan?: string | null;
@@ -18,25 +23,45 @@ export function MetinAlani({
   ipucu?: string;
   yerTutucu?: string;
   enAzUzunluk?: number;
+  enCokUzunluk?: number;
+  cokSatir?: boolean;
+  satir?: number;
 }) {
+  const htmlId = alanId ?? ad;
   return (
     <div>
-      <label htmlFor={ad} className="alan-etiketi">
+      <label htmlFor={htmlId} className="alan-etiketi">
         {etiket}
         {gerekli ? <span className="ml-0.5 text-rose-600">*</span> : null}
       </label>
-      <input
-        id={ad}
-        name={ad}
-        type={tur}
-        required={gerekli}
-        minLength={enAzUzunluk}
-        defaultValue={varsayilan ?? ""}
-        placeholder={yerTutucu}
-        autoComplete={tur === "password" ? "new-password" : "off"}
-        spellCheck={false}
-        className="alan"
-      />
+      {cokSatir ? (
+        <textarea
+          id={htmlId}
+          name={ad}
+          required={gerekli}
+          minLength={enAzUzunluk}
+          maxLength={enCokUzunluk}
+          defaultValue={varsayilan ?? ""}
+          placeholder={yerTutucu}
+          rows={satir}
+          spellCheck={false}
+          className="alan min-h-24"
+        />
+      ) : (
+        <input
+          id={htmlId}
+          name={ad}
+          type={tur}
+          required={gerekli}
+          minLength={enAzUzunluk}
+          maxLength={enCokUzunluk}
+          defaultValue={varsayilan ?? ""}
+          placeholder={yerTutucu}
+          autoComplete={tur === "password" ? "new-password" : "off"}
+          spellCheck={false}
+          className="alan"
+        />
+      )}
       {ipucu ? <p className="alan-ipucu">{ipucu}</p> : null}
     </div>
   );

@@ -540,8 +540,7 @@ export const soruAnalizi = cache(async (examId: string, institutionId: string) =
 
 /**
  * Kurumdaki ogrenciler; arama ve sinif filtresiyle.
- * SQLite'ta buyuk/kucuk harf duyarsiz arama desteklenmedigi icin arama
- * normalize edilmis (buyuk harfli) ad alani uzerinden yapiliyor.
+ * Arama, normalize edilmis (buyuk harfli) ad alani uzerinden yapilir.
  */
 export const ogrenciListesi = cache(async (
   institutionId: string,

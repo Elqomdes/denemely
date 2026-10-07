@@ -27,7 +27,7 @@ export async function girisYap(
   }
 
   const dbUrl = process.env.DENEMELY_DATABASE_URL ?? "";
-  if (!dbUrl.startsWith("postgres://") && !dbUrl.startsWith("postgresql://") && !dbUrl.startsWith("file:")) {
+  if (!dbUrl.startsWith("postgres://") && !dbUrl.startsWith("postgresql://")) {
     return { hata: "Veritabanı bağlantısı yok. Vercel'e DENEMELY_DATABASE_URL ekleyin." };
   }
   if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 16) {

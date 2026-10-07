@@ -23,8 +23,16 @@ export function KurumOlusturFormu() {
       <MetinAlani
         ad="logoUrl"
         etiket="Logo adresi"
-        tur="url"
+        yerTutucu="https://"
         ipucu="Kurumun giriş sayfasında gösterilecek logonun bağlantısı (isteğe bağlı)."
+      />
+      <MetinAlani
+        ad="notlar"
+        etiket="İç not"
+        cokSatir
+        enCokUzunluk={2000}
+        yerTutucu="Sözleşme, paket, iletişim…"
+        ipucu="Yalnızca Hedefly yönetiminde görünür."
       />
 
       <DurumMesaji durum={durum} />
@@ -45,6 +53,7 @@ export function KurumDuzenleFormu({
     il: string | null;
     ilce: string | null;
     logoUrl: string | null;
+    notlar: string | null;
     aktif: boolean;
   };
 }) {
@@ -56,18 +65,31 @@ export function KurumDuzenleFormu({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <MetinAlani ad="ad" etiket="Kurum adı" gerekli varsayilan={kurum.ad} />
-        <div>
-          <p className="alan-etiketi">Giriş sayfası adresi</p>
-          <p className="veri-yazisi rounded-sm border border-cerceve bg-slate-50 px-3 py-2 text-[13px] text-slate-600">
-            /k/{kurum.slug}
-          </p>
-          <p className="alan-ipucu">Adres kurumla paylaşıldığı için değiştirilemez.</p>
-        </div>
+        <MetinAlani
+          ad="slug"
+          etiket="Giriş sayfası adresi"
+          gerekli
+          varsayilan={kurum.slug}
+          ipucu="Değiştirirseniz eski /k/… bağlantısı çalışmaz; yenisini kuruma iletin."
+        />
         <MetinAlani ad="il" etiket="İl" varsayilan={kurum.il} />
         <MetinAlani ad="ilce" etiket="İlçe" varsayilan={kurum.ilce} />
       </div>
 
-      <MetinAlani ad="logoUrl" etiket="Logo adresi" tur="url" varsayilan={kurum.logoUrl} />
+      <MetinAlani
+        ad="logoUrl"
+        etiket="Logo adresi"
+        varsayilan={kurum.logoUrl}
+        yerTutucu="https://"
+      />
+      <MetinAlani
+        ad="notlar"
+        etiket="İç not"
+        cokSatir
+        enCokUzunluk={2000}
+        varsayilan={kurum.notlar}
+        ipucu="Yalnızca Hedefly yönetiminde görünür."
+      />
 
       <label className="flex items-center gap-2 text-sm text-slate-700">
         <input
