@@ -46,6 +46,98 @@ function konulariDerslereAyir(satirlar: EslesenKazanim[]) {
     .sort((a, b) => dersSiraNo(a.dersAdi) - dersSiraNo(b.dersAdi));
 }
 
+function NetGelisimCizgisi({ denemeler }: { denemeler: DenemeOzet[] }) {
+  if (denemeler.length < 2) {
+    return (
+      <p className="mt-2 text-[13px] text-slate-600">
+        Grafik için en az iki deneme gerekir. Şu an {tamSayi(denemeler.length)} denemen var.
+      </p>
+    );
+  }
+
+  const netler = denemeler.map((deneme) => deneme.toplamNet);
+  const min = Math.min(...netler);
+  const max = Math.max(...netler);
+  const pay = max === min ? 5 : (max - min) * 0.18;
+  const alt = min - pay;
+  const ust = max + pay;
+  const genislik = 640;
+  const yukseklik = 168;
+  const sol = 40;
+  const sag = 12;
+  const ustBosluk = 16;
+  const altBosluk = 30;
+  const icGenislik = genislik - sol - sag;
+  const icYukseklik = yukseklik - ustBosluk - altBosluk;
+  const x = (index: number) => sol + (index / (denemeler.length - 1)) * icGenislik;
+  const y = (deger: number) =>
+    ustBosluk + icYukseklik - ((deger - alt) / (ust - alt)) * icYukseklik;
+  const yol = denemeler
+    .map((deneme, index) => `${index === 0 ? "M" : "L"}${x(index).toFixed(1)} ${y(deneme.toplamNet).toFixed(1)}`)
+    .join(" ");
+  const araCizgiler = [0.25, 0.5, 0.75].map((oran) => ustBosluk + icYukseklik * (1 - oran));
+
+  return (
+    <svg
+      viewBox={`0 0 ${genislik} ${yukseklik}`}
+      className="karne-renk mt-2 w-full"
+      role="img"
+      aria-label="İlk denemeden son denemeye net çizgisi"
+    >
+      <line
+        x1={sol}
+        y1={ustBosluk + icYukseklik}
+        x2={sol + icGenislik}
+        y2={ustBosluk + icYukseklik}
+        stroke="#e2e8f0"
+      />
+      {araCizgiler.map((cy) => (
+        <line key={cy} x1={sol} y1={cy} x2={sol + icGenislik} y2={cy} stroke="#f1f5f9" />
+      ))}
+      <text x={sol - 6} y={y(ust) + 3} textAnchor="end" className="fill-slate-400" fontSize="10">
+        {net(ust)}
+      </text>
+      <text x={sol - 6} y={y(alt) + 3} textAnchor="end" className="fill-slate-400" fontSize="10">
+        {net(alt)}
+      </text>
+      <path d={yol} fill="none" stroke="#4f46e5" strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" />
+      {denemeler.map((deneme, index) => {
+        const seyrek = denemeler.length > 7;
+        const etiketGoster =
+          !seyrek || index === 0 || index === denemeler.length - 1 || index % Math.ceil(denemeler.length / 5) === 0;
+        return (
+          <g key={deneme.id}>
+            <circle cx={x(index)} cy={y(deneme.toplamNet)} r="3.5" fill="#4f46e5" stroke="#fff" strokeWidth="1.5" />
+            {etiketGoster ? (
+              <>
+                <text
+                  x={x(index)}
+                  y={y(deneme.toplamNet) - 8}
+                  textAnchor="middle"
+                  className="fill-slate-800"
+                  fontSize="10"
+                  fontWeight="600"
+                >
+                  {net(deneme.toplamNet)}
+                </text>
+                <text
+                  x={x(index)}
+                  y={yukseklik - 8}
+                  textAnchor="middle"
+                  className="fill-slate-500"
+                  fontSize="10"
+                >
+                  {kisaTarih(deneme.tarih)}
+                </text>
+              </>
+            ) : null}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 function oncekiYazi(konu: EslesenKazanim) {
   if (konu.oncekiYanlisDeneme <= 0) return "Önceki denemelerde yok";
   return `Önceki: ${tamSayi(konu.oncekiYanlisDeneme)} denemede yanlış`;
@@ -309,7 +401,11 @@ export function RehberlikKarnesi({
 
       <section className="mt-4 break-inside-avoid">
         <h2 className="text-[14px] font-semibold text-slate-950">Girdiğin denemeler</h2>
-        <table className="mt-1 w-full border-collapse text-[13px]">
+        <p className="mt-0.5 text-[12px] text-slate-500">
+          Soldan sağa ilk denemeden son denemeye. Tek çizgi netinin iniş çıkışını gösterir.
+        </p>
+        <NetGelisimCizgisi denemeler={denemeler} />
+        <table className="mt-2 w-full border-collapse text-[13px]">
           <thead>
             <tr className="border-b border-slate-200 text-left text-[12px] text-slate-500">
               <th className="py-1.5 font-medium">Deneme</th>
