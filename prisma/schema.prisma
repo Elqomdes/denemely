@@ -1,0 +1,249 @@
+// Denemely veri modeli. Veritabani PostgreSQL (Supabase).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DENEMELY_DATABASE_URL")
+}
+
+// Not: SQLite connector'u enum desteklemedigi icin rol String tutuluyor.
+// Gecerli degerler lib/auth/roller.ts icinde tanimli.
+
+/// Denemely'yi kullanan kurum (dershane, kurs, okul)
+model Institution {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  ad        String
+  il        String?
+  ilce      String?
+  logoUrl   String?
+  aktif     Boolean  @default(true)
+  notlar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  kullanicilar User[]
+  ogrenciler   Student[]
+  denemeler    Exam[]
+  birlestirmeYoksaymalari StudentMergeIgnore[]
+}
+
+/// "Bu iki kayit ayni kisi degil" isareti; birlestirme onerisi listesini temiz tutar.
+model StudentMergeIgnore {
+  id            String      @id @default(cuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  /// Ikili her zaman kimlik siralamasiyla yazilir (kucuk olan once)
+  ogrenciAId    String
+  ogrenciBId    String
+  createdAt     DateTime    @default(now())
+
+  @@unique([institutionId, ogrenciAId, ogrenciBId])
+}
+
+/// Hedefly ekibi (SUPERADMIN) veya kurum yetkilisi. E-posta tutulmaz.
+model User {
+  id            String   @id @default(cuid())
+  kullaniciAdi  String   @unique
+  sifreHash     String
+  adSoyad       String
+  /// SUPERADMIN | KURUM_YETKILISI
+  rol           String   @default("KURUM_YETKILISI")
+  aktif         Boolean  @default(true)
+  sonGirisTarihi DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institutionId String?
+  institution   Institution? @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  yuklenenDenemeler Exam[] @relation("YukleyenKullanici")
+
+  @@index([institutionId])
+}
+
+/// Kurumdaki ogrenci. Ogrenciler sisteme giris yapmaz.
+model Student {
+  id             String   @id @default(cuid())
+  institutionId  String
+  institution    Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  adSoyad        String
+  /// Eslestirme icin buyuk harfe cevrilmis, fazla bosluklari alinmis hali
+  normalizedAd   String
+  ogrenciNo      String?
+  sinif          String?
+  aktif          Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  sonuclar      ExamResult[]
+  takmaAdlar    StudentNameAlias[]
+  veliKarneleri VeliKarne[]
+
+  @@unique([institutionId, normalizedAd])
+  @@index([institutionId, sinif])
+}
+
+/// Ogrencinin optik formda kodladigi diger ad yazimlari.
+/// Birlestirme sonrasi yeni denemelerde ayni kopya kaydin tekrar olusmasini onler.
+model StudentNameAlias {
+  id            String   @id @default(cuid())
+  institutionId String
+  studentId     String
+  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  normalizedAd  String
+  createdAt     DateTime @default(now())
+
+  @@unique([institutionId, normalizedAd])
+  @@index([studentId])
+}
+
+/// Bir deneme sinavi (yuklenen tek bir PDF = tek bir deneme)
+model Exam {
+  id            String   @id @default(cuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  ad            String
+  /// TYT, AYT, LGS... simdilik TYT
+  sinavTuru     String   @default("TYT")
+  /// Ayristirilan PDF formati: SONUC_BELGESI | AKTIF
+  format        String
+  tarih         DateTime
+  kaynakDosya   String?
+  toplamSoru    Int      @default(0)
+  notlar        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  yukleyenId String?
+  yukleyen   User?   @relation("YukleyenKullanici", fields: [yukleyenId], references: [id], onDelete: SetNull)
+
+  sonuclar      ExamResult[]
+  veliKarneleri VeliKarne[]
+
+  /// Ayni deneme tekrar yuklendiginde yeni kayit yerine mevcut kayit guncellenir.
+  @@unique([institutionId, ad, tarih])
+  @@index([institutionId, tarih])
+}
+
+/// Bir ogrencinin bir denemedeki sonucu
+model ExamResult {
+  id        String @id @default(cuid())
+  examId    String
+  exam      Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  sayfaNo Int?
+
+  puan              Float?
+  genelOrtalamaPuan Float?
+  yuzdelikDilim     Float?
+
+  toplamSoru   Int
+  toplamDogru  Int
+  toplamYanlis Int
+  toplamBos    Int
+  toplamNet    Float
+  basariYuzde  Float?
+
+  sinifSira Int?
+  kurumSira Int?
+  ilceSira  Int?
+  ilSira    Int?
+  genelSira Int?
+
+  sinifKatilim Int?
+  kurumKatilim Int?
+  ilceKatilim  Int?
+  ilKatilim    Int?
+  genelKatilim Int?
+
+  /// Ayristirma uyarilari (JSON dizi)
+  uyarilar  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  dersler   SubjectResult[]
+  kazanimlar TopicResult[]
+  cevaplar  AnswerSheet[]
+
+  @@unique([examId, studentId])
+  @@index([studentId])
+}
+
+/// Ders ve ders grubu bazli sonuc
+model SubjectResult {
+  id           String     @id @default(cuid())
+  examResultId String
+  examResult   ExamResult @relation(fields: [examResultId], references: [id], onDelete: Cascade)
+
+  dersAdi   String
+  dersGrubu String
+  /// "TYT Sosyal" gibi grup toplami satiri mi? (grup toplami alt derslerin toplamina esit olmayabilir)
+  isGrup    Boolean @default(false)
+
+  soru        Int
+  dogru       Int
+  yanlis      Int
+  bos         Int
+  net         Float
+  basariYuzde Float?
+  sinifOrt    Float?
+  kurumOrt    Float?
+  genelOrt    Float?
+
+  @@index([examResultId])
+  @@index([dersGrubu])
+}
+
+/// Kazanim (konu) bazli analiz — detayli analizin kalbi
+model TopicResult {
+  id           String     @id @default(cuid())
+  examResultId String
+  examResult   ExamResult @relation(fields: [examResultId], references: [id], onDelete: Cascade)
+
+  dersAdi     String
+  dersGrubu   String
+  kazanim     String
+  soru        Int
+  dogru       Int
+  yanlis      Int
+  basariYuzde Float?
+
+  @@index([examResultId])
+  @@index([kazanim])
+}
+
+/// Ders grubu bazinda cevap anahtari ve ogrenci cevaplari
+model AnswerSheet {
+  id           String     @id @default(cuid())
+  examResultId String
+  examResult   ExamResult @relation(fields: [examResultId], references: [id], onDelete: Cascade)
+
+  dersGrubu        String
+  kitapcik         String?
+  cevapAnahtari    String
+  /// Ayni uzunlukta: buyuk harf dogru, kucuk harf yanlis, bosluk bos
+  ogrenciCevaplari String
+
+  @@unique([examResultId, dersGrubu])
+}
+
+/// Veliye gonderilen karne baglantisi. Adres yalnizca bir ogrencinin bir denemesini acar.
+model VeliKarne {
+  id            String   @id @default(cuid())
+  token         String   @unique
+  institutionId String
+  studentId     String
+  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  examId        String
+  exam          Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+
+  @@unique([studentId, examId])
+  @@index([institutionId])
+}

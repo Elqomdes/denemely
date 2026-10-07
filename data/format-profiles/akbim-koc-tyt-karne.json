@@ -1,0 +1,94 @@
+{
+  "id": "akbim-koc-tyt-karne",
+  "ad": "AKBİM-KOÇ TYT Sınav Sonuç Belgesi",
+  "yayin": "AKBİM-KOÇ",
+  "tespit": {
+    "zorunlu": [
+      "^AKBİM-KOÇ$",
+      "^SINAV SONUÇ BELGESİ$",
+      "^TESTE GÖRE ÖĞRENCİ SAYILARI$",
+      "^MAT CEV\\. ANAH\\.$"
+    ],
+    "istege_bagli": [
+      "^DERECELER$",
+      "^Kitapçık Türü$",
+      "KONU ADI\\s+SS\\s+D\\s+Y\\s+%"
+    ]
+  },
+  "sayfa": {
+    "kimlikBandi": "tam",
+    "dersBandi": "tam",
+    "cevapBandi": "her_iki",
+    "kazanimBandi": "tam"
+  },
+  "kimlik": {
+    "konumDeseni": "^[^/]+\\s*/\\s*[^/]+\\s*/\\s*[^/]+$",
+    "konumMinTop": 0,
+    "konumMaxTop": 25,
+    "baslikDeseni": "^MEB KODU\\s+ŞUBE\\s+ÖĞR\\.NO\\s+TC NO\\s+SOYADI - ADI\\s+SINAV ADI\\s+TARİH$",
+    "adBaslik": "SOYADI - ADI",
+    "noBaslik": "ÖĞR.NO",
+    "sinifBaslik": "ŞUBE",
+    "sinavBaslik": "SINAV ADI",
+    "noYildizdanAyir": true,
+    "adSinavBasliginiAt": true,
+    "alternatifAdDeseni": "",
+    "puanYontem": "tek_ondalik",
+    "puanEtiket": "PUANLAR",
+    "puanMin": 100,
+    "puanMax": 500,
+    "yuzdelikDeseni": ""
+  },
+  "ders": {
+    "yontem": "yatay_kolon",
+    "baslikDeseni": "^DERSLER(?:$|\\s+TÜRKÇE\\s+SOSYAL\\s+T\\.\\s*MAT\\s+FEN(?:\\s|$))",
+    "soruSatir": "^SORU SAYISI(?:\\s|$)",
+    "dogruSatir": "^DOĞRU CEVAP(?:\\s|$)",
+    "yanlisSatir": "^YANLIŞ CEVAP(?:\\s|$)",
+    "bosSatir": "^BOŞ CEVAP(?:\\s|$)",
+    "netSatir": "^NET(?:\\s|$)",
+    "basariSatir": "^BAŞARI ORANI(?:\\s|$)",
+    "ortSatir": "^SINAV NET ORT\\.(?:\\s|$)",
+    "kuyrukSayi": 0,
+    "idxSoru": -1,
+    "idxDogru": -1,
+    "idxYanlis": -1,
+    "idxBos": -1,
+    "idxNet": -1,
+    "idxBasari": -1,
+    "idxSinifOrt": -1,
+    "idxKurumOrt": -1,
+    "idxGenelOrt": -1,
+    "toplamEtiket": "",
+    "yuzdeTokenGerekli": false
+  },
+  "sira": {
+    "yontem": "etiketli_satir",
+    "minTop": 175,
+    "maxTop": 235,
+    "genelDesen": "^TÜRKİYE$",
+    "ilDesen": "^İL$",
+    "ilceDesen": "^İLÇE$",
+    "kurumDesen": "^KURUM$",
+    "sinifDesen": "^ŞUBE$",
+    "siraIndex": 0,
+    "katilimIndex": 1,
+    "katilimBaslik": "TESTE GÖRE ÖĞRENCİ SAYILARI"
+  },
+  "cevap": {
+    "yontem": "etiket_cift",
+    "anahtarDeseni": "^(?:TÜRKÇE|SOSYAL|T\\s*\\.\\s*M\\s*A\\s*T|F\\s*E\\s*N)$",
+    "ogrenciDeseni": "^ÖĞRENCİ CEVABI$",
+    "ogrenciKonum": "alt",
+    "dersKaynak": "blok_etiket",
+    "iptalHarfi": "T"
+  },
+  "kazanim": {
+    "yontem": "cok_sutun",
+    "sutunSayisi": 3,
+    "baslikDeseni": "KONU ADI\\s+SS\\s+D\\s+Y\\s+%",
+    "sayiAdedi": 4,
+    "sifirSatirDers": true,
+    "sdybBaslik": false
+  }
+}
