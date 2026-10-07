@@ -1,3 +1,4 @@
+import { SINAV_GRUP_SET } from "@/lib/sinav";
 import type { PdfLine, PdfPage, PdfToken } from "../extract";
 import {
   alignToRuler,
@@ -32,8 +33,6 @@ import {
 } from "./helpers";
 import type { FormatProfile } from "./schema";
 
-const TYT_GRUPLARI = new Set(["TYT Türkçe", "TYT Sosyal", "TYT Matematik", "TYT Fen"]);
-
 export function parseProfilSayfasi(page: PdfPage, profil: FormatProfile): ParsedStudentPage {
   const uyarilar: string[] = [];
   const kimlikSatirlari = bantSatirlari(page, profil.sayfa.kimlikBandi)[0] ?? page.lines;
@@ -46,9 +45,9 @@ export function parseProfilSayfasi(page: PdfPage, profil: FormatProfile): Parsed
     dersler.push(...okunan.dersler);
     if (okunan.toplam) toplam = okunan.toplam;
   }
-  dersler = tytDersleri(dersler);
+  dersler = sinavDersleri(dersler);
   normalizeGroupFlags(dersler);
-  if (dersler.length === 0) uyarilar.push("TYT ders satırları okunamadı.");
+  if (dersler.length === 0) uyarilar.push("Ders satırları okunamadı.");
   if (!toplam) toplam = gruplardanToplam(dersler);
 
   const { siralar, katilimlar } = parseSiralar(page, profil);
@@ -297,7 +296,7 @@ function parseYatayDers(lines: PdfLine[], profil: FormatProfile, uyarilar: strin
     const soru = sorular.get(kolon.ad) ?? 0;
     if (soru <= 0) continue;
     const grup = resolveDersGrubu(kolon.ad);
-    if (!TYT_GRUPLARI.has(grup)) continue;
+    if (!SINAV_GRUP_SET.has(grup)) continue;
     const dogru = dogrular.get(kolon.ad) ?? 0;
     const yanlis = yanlislar.get(kolon.ad) ?? 0;
     const bos = boslar.get(kolon.ad) ?? Math.max(0, soru - dogru - yanlis);
@@ -355,7 +354,7 @@ function parseDikeyKuyruk(lines: PdfLine[], profil: FormatProfile) {
 
     const grup = resolveDersGrubu(label);
     if (soru <= 0) continue;
-    if (!TYT_GRUPLARI.has(grup) && !isDersGrubuAdi(label) && grup === "Diğer") continue;
+    if (!SINAV_GRUP_SET.has(grup) && !isDersGrubuAdi(label) && grup === "Diğer") continue;
 
     dersler.push({
       dersAdi: label,
@@ -402,7 +401,7 @@ function parseDikeyYuzde(lines: PdfLine[], profil: FormatProfile) {
       .trim();
     const [soru, dogru, yanlis, bos, net] = sayilar;
     const grup = resolveDersGrubu(dersAdi);
-    if (!TYT_GRUPLARI.has(grup) && !isDersGrubuAdi(dersAdi) && grup === "Diğer") continue;
+    if (!SINAV_GRUP_SET.has(grup) && !isDersGrubuAdi(dersAdi) && grup === "Diğer") continue;
     dersler.push({
       dersAdi,
       dersGrubu: grup,
@@ -614,6 +613,10 @@ function cevapGrubu(raw: string): string | null {
   if (key === "SOSYAL") return "TYT Sosyal";
   if (key === "TMAT") return "TYT Matematik";
   if (key === "FEN") return "TYT Fen";
+  if (key === "EDEBIYAT" || key === "TDE") return "AYT Edebiyat";
+  if (key === "AMAT" || key === "AYTMAT") return "AYT Matematik";
+  if (key === "AYTFEN") return "AYT Fen";
+  if (key === "AYTSOSYAL") return "AYT Sosyal";
   return resolveDersGrubu(raw) === "Diğer" ? null : resolveDersGrubu(raw);
 }
 
@@ -800,8 +803,8 @@ function kazanimBasligiMi(raw: string): boolean {
   );
 }
 
-function tytDersleri(dersler: ParsedSubject[]): ParsedSubject[] {
-  return dersler.filter((d) => TYT_GRUPLARI.has(d.dersGrubu));
+function sinavDersleri(dersler: ParsedSubject[]): ParsedSubject[] {
+  return dersler.filter((d) => SINAV_GRUP_SET.has(d.dersGrubu));
 }
 
 function gruplardanToplam(dersler: ParsedSubject[]): ParsedTotals {

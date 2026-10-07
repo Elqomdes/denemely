@@ -76,8 +76,8 @@ export async function onizlemeHazirla(
     };
   });
 
-  const mevcutDeneme = await prisma.exam.findUnique({
-    where: { institutionId_ad_tarih: { institutionId, ad: denemeAdi, tarih } },
+  const mevcutDeneme = await prisma.exam.findFirst({
+    where: { institutionId, ad: denemeAdi, tarih },
     select: { id: true, ad: true, _count: { select: { sonuclar: true } } },
   });
 

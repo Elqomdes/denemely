@@ -34,7 +34,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
             <Logo boyut="md" ton="acik" />
           </Link>
           <span className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-cyan-300">
-            TYT
+            TYT · AYT
           </span>
         </div>
         <div className="px-5 pb-1 pt-5">

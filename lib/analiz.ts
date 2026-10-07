@@ -2,13 +2,22 @@ import { cache } from "react";
 import { dersSiraNo, kanonikDersAdi, tekDenemeDersleri } from "@/lib/ders/kanonik";
 import { prisma } from "@/lib/db";
 import { resolveDersGrubu } from "@/lib/pdf/parseUtils";
+import {
+  AYT_GRUP_SIRASI,
+  TYT_GRUP_SIRASI,
+  parseSinavTuru,
+  type SinavTuru,
+} from "@/lib/sinav";
 
-export const GRUP_SIRASI = ["TYT Türkçe", "TYT Sosyal", "TYT Matematik", "TYT Fen"];
+export const GRUP_SIRASI = [...TYT_GRUP_SIRASI];
 
 /** Ders gruplarini karnedeki sirayla gostermek icin */
 export function grupSiraNo(grup: string): number {
-  const index = GRUP_SIRASI.indexOf(grup);
-  return index === -1 ? 99 : index;
+  const tyt = (TYT_GRUP_SIRASI as readonly string[]).indexOf(grup);
+  if (tyt !== -1) return tyt;
+  const ayt = (AYT_GRUP_SIRASI as readonly string[]).indexOf(grup);
+  if (ayt !== -1) return 10 + ayt;
+  return 99;
 }
 
 export const GRUP_KISA_ADLARI: Record<string, string> = {
@@ -16,6 +25,10 @@ export const GRUP_KISA_ADLARI: Record<string, string> = {
   "TYT Sosyal": "Sosyal",
   "TYT Matematik": "Matematik",
   "TYT Fen": "Fen",
+  "AYT Edebiyat": "Edebiyat",
+  "AYT Sosyal": "Sosyal",
+  "AYT Matematik": "Matematik",
+  "AYT Fen": "Fen",
 };
 
 export function grupKisaAdi(grup: string): string {
@@ -59,18 +72,20 @@ function kazanimOzetiHazirla(
 }
 
 /** Kurum genel bakis verileri */
-export const kurumOzeti = cache(async (institutionId: string) => {
+export const kurumOzeti = cache(async (institutionId: string, sinavTuru: SinavTuru = "TYT") => {
+  const sinavFiltresi = { institutionId, sinavTuru };
   const [denemeSayisi, ogrenciSayisi, denemeler] = await Promise.all([
-    prisma.exam.count({ where: { institutionId } }),
+    prisma.exam.count({ where: sinavFiltresi }),
     prisma.student.count({ where: { institutionId, aktif: true } }),
     prisma.exam.findMany({
-      where: { institutionId },
+      where: sinavFiltresi,
       orderBy: { tarih: "desc" },
       take: 10,
       select: {
         id: true,
         ad: true,
         tarih: true,
+        sinavTuru: true,
         toplamSoru: true,
         _count: { select: { sonuclar: true } },
       },
@@ -202,9 +217,9 @@ export const enZayifKazanimlar = cache(async ({
 });
 
 /** Kurumun tum denemeleri, katilim ve ortalamalariyla */
-export const denemeListesi = cache(async (institutionId: string) => {
+export const denemeListesi = cache(async (institutionId: string, sinavTuru: SinavTuru = "TYT") => {
   const denemeler = await prisma.exam.findMany({
-    where: { institutionId },
+    where: { institutionId, sinavTuru },
     orderBy: { tarih: "desc" },
     select: {
       id: true,
@@ -530,9 +545,10 @@ export const soruAnalizi = cache(async (examId: string, institutionId: string) =
  */
 export const ogrenciListesi = cache(async (
   institutionId: string,
-  filtre: { arama?: string; sinif?: string } = {},
+  filtre: { arama?: string; sinif?: string; sinavTuru?: SinavTuru } = {},
 ) => {
   const arama = filtre.arama?.trim();
+  const sinavTuru = parseSinavTuru(filtre.sinavTuru);
 
   const [ogrenciler, siniflar, sonDeneme] = await Promise.all([
     prisma.student.findMany({
@@ -547,7 +563,6 @@ export const ogrenciListesi = cache(async (
         adSoyad: true,
         sinif: true,
         ogrenciNo: true,
-        _count: { select: { sonuclar: true } },
       },
     }),
     prisma.student.groupBy({
@@ -556,19 +571,21 @@ export const ogrenciListesi = cache(async (
       _count: { _all: true },
     }),
     prisma.exam.findFirst({
-      where: { institutionId },
+      where: { institutionId, sinavTuru },
       orderBy: { tarih: "desc" },
-      select: { id: true, ad: true, tarih: true },
+      select: { id: true, ad: true, tarih: true, sinavTuru: true },
     }),
   ]);
 
   const ogrenciIdleri = ogrenciler.map((ogrenci) => ogrenci.id);
+  const sinavSonucu = { studentId: { in: ogrenciIdleri }, exam: { sinavTuru } };
 
   const [ortalamalar, sonDenemeSonuclari] = await Promise.all([
     ogrenciIdleri.length > 0
       ? prisma.examResult.groupBy({
           by: ["studentId"],
-          where: { studentId: { in: ogrenciIdleri } },
+          where: sinavSonucu,
+          _count: { _all: true },
           _avg: { toplamNet: true, puan: true },
           _max: { toplamNet: true },
         })
@@ -596,20 +613,23 @@ export const ogrenciListesi = cache(async (
         adSoyad: ogrenci.adSoyad,
         sinif: ogrenci.sinif,
         ogrenciNo: ogrenci.ogrenciNo,
-        denemeSayisi: ogrenci._count.sonuclar,
+        denemeSayisi: ortalamaHaritasi.get(ogrenci.id)?._count._all ?? 0,
         ortalamaNet: ortalamaHaritasi.get(ogrenci.id)?._avg.toplamNet ?? null,
         enYuksekNet: ortalamaHaritasi.get(ogrenci.id)?._max.toplamNet ?? null,
         ortalamaPuan: ortalamaHaritasi.get(ogrenci.id)?._avg.puan ?? null,
         sonDenemeNet: sonDenemeHaritasi.get(ogrenci.id)?.toplamNet ?? null,
         sonDenemePuan: sonDenemeHaritasi.get(ogrenci.id)?.puan ?? null,
       }))
-      // SQLite sıralaması Türkçe harfleri dogru siralamadigi icin burada siraliyoruz.
       .sort((a, b) => a.adSoyad.localeCompare(b.adSoyad, "tr")),
   };
 });
 
 /** Bir ogrencinin tum denemelerdeki gelisimi */
-export const ogrenciAnalizi = cache(async (studentId: string, institutionId: string) => {
+export const ogrenciAnalizi = cache(async (
+  studentId: string,
+  institutionId: string,
+  sinavTuru: SinavTuru = "TYT",
+) => {
   const ogrenci = await prisma.student.findFirst({
     where: { id: studentId, institutionId },
     select: {
@@ -624,7 +644,7 @@ export const ogrenciAnalizi = cache(async (studentId: string, institutionId: str
 
   const [sonuclar, kazanimSatirlari] = await Promise.all([
     prisma.examResult.findMany({
-      where: { studentId },
+      where: { studentId, exam: { sinavTuru } },
       orderBy: { exam: { tarih: "asc" } },
       select: {
         id: true,
@@ -636,7 +656,7 @@ export const ogrenciAnalizi = cache(async (studentId: string, institutionId: str
         toplamBos: true,
         toplamNet: true,
         genelSira: true,
-        exam: { select: { id: true, ad: true, tarih: true } },
+        exam: { select: { id: true, ad: true, tarih: true, sinavTuru: true } },
         dersler: {
           select: {
             dersAdi: true,
@@ -652,7 +672,7 @@ export const ogrenciAnalizi = cache(async (studentId: string, institutionId: str
       },
     }),
     prisma.topicResult.findMany({
-      where: { examResult: { studentId } },
+      where: { examResult: { studentId, exam: { sinavTuru } } },
       select: {
         examResultId: true,
         dersAdi: true,

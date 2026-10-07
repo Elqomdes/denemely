@@ -15,12 +15,16 @@ export function formatEtiketi(format: string): string {
   return EXAM_FORMAT_LABELS[format as ExamFormat] ?? format;
 }
 
-/** TYT ders gruplari (deneme belgelerindeki yazimlariyla) */
+/** TYT ve AYT ders gruplari (deneme belgelerindeki yazimlariyla) */
 export const DERS_GRUPLARI = [
   "TYT Türkçe",
   "TYT Sosyal",
   "TYT Matematik",
   "TYT Fen",
+  "AYT Edebiyat",
+  "AYT Sosyal",
+  "AYT Matematik",
+  "AYT Fen",
 ] as const;
 
 export type DersGrubu = (typeof DERS_GRUPLARI)[number];

@@ -107,7 +107,7 @@ model Exam {
   institutionId String
   institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   ad            String
-  /// TYT, AYT, LGS... simdilik TYT
+  /// TYT | AYT
   sinavTuru     String   @default("TYT")
   /// Ayristirilan PDF formati: SONUC_BELGESI | AKTIF
   format        String
@@ -125,8 +125,10 @@ model Exam {
   veliKarneleri VeliKarne[]
 
   /// Ayni deneme tekrar yuklendiginde yeni kayit yerine mevcut kayit guncellenir.
-  @@unique([institutionId, ad, tarih])
+  /// TYT ve AYT ayni ad/tarihte ayri kayit olabilir.
+  @@unique([institutionId, ad, tarih, sinavTuru])
   @@index([institutionId, tarih])
+  @@index([institutionId, sinavTuru, tarih])
 }
 
 /// Bir ogrencinin bir denemedeki sonucu

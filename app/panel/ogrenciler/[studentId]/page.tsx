@@ -9,7 +9,6 @@ import { RehberlikKarnesi } from "@/components/ogrenci/RehberlikKarnesi";
 import { YazdirButonu } from "@/components/YazdirButonu";
 import { VeliKarneButonu } from "@/components/veli/VeliKarneButonu";
 import {
-  GRUP_SIRASI,
   grupKisaAdi,
   grupSiraNo,
   kazanimlariEslestir,
@@ -18,11 +17,19 @@ import {
 import { dersSiraNo, tekDenemeDersleri } from "@/lib/ders/kanonik";
 import { kurumOturumuGerekli } from "@/lib/auth/guards";
 import { basariArkaPlani, kisaTarih, net, puan, tamSayi, yuzde } from "@/lib/format";
+import { mevcutGrupSirasi, parseSinavTuru, sinavQuery } from "@/lib/sinav";
+import { SinavTuruSecici } from "@/components/SinavTuruSecici";
 
-export async function generateMetadata({ params }: { params: Promise<{ studentId: string }> }) {
-  const { studentId } = await params;
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ studentId: string }>;
+  searchParams: Promise<{ sinav?: string }>;
+}) {
+  const [{ studentId }, { sinav }] = await Promise.all([params, searchParams]);
   const { kurum } = await kurumOturumuGerekli();
-  const analiz = await ogrenciAnalizi(studentId, kurum.id);
+  const analiz = await ogrenciAnalizi(studentId, kurum.id, parseSinavTuru(sinav));
   return { title: analiz?.ogrenci.adSoyad ?? "Öğrenci" };
 }
 
@@ -31,12 +38,13 @@ export default async function OgrenciDetaySayfasi({
   searchParams,
 }: {
   params: Promise<{ studentId: string }>;
-  searchParams: Promise<{ durum?: string; tasinan?: string }>;
+  searchParams: Promise<{ durum?: string; tasinan?: string; sinav?: string }>;
 }) {
-  const [{ studentId }, { durum, tasinan }] = await Promise.all([params, searchParams]);
+  const [{ studentId }, { durum, tasinan, sinav }] = await Promise.all([params, searchParams]);
   const { kurum } = await kurumOturumuGerekli();
+  const sinavTuru = parseSinavTuru(sinav);
 
-  const analiz = await ogrenciAnalizi(studentId, kurum.id);
+  const analiz = await ogrenciAnalizi(studentId, kurum.id, sinavTuru);
   if (!analiz) notFound();
 
   const { ogrenci, sonuclar, kazanimSatirlari } = analiz;
@@ -47,16 +55,17 @@ export default async function OgrenciDetaySayfasi({
       meta={[
         ogrenci.sinif,
         ogrenci.ogrenciNo && ogrenci.ogrenciNo !== "0" ? `No ${ogrenci.ogrenciNo}` : null,
-        `${tamSayi(sonuclar.length)} deneme`,
+        `${tamSayi(sonuclar.length)} ${sinavTuru} deneme`,
       ]
         .filter(Boolean)
         .join(" · ")}
-      geri={{ yazi: "Öğrenciler", yol: "/panel/ogrenciler" }}
+      geri={{ yazi: "Öğrenciler", yol: `/panel/ogrenciler?${sinavQuery(sinavTuru)}` }}
     >
+      <SinavTuruSecici deger={sinavTuru} yol={`/panel/ogrenciler/${ogrenci.id}`} />
       <Link href={`/panel/ogrenciler/${ogrenci.id}/duzenle`} className="btn btn-ikincil btn-kucuk">
         Kaydı düzenle
       </Link>
-      <YazdirButonu dosyaAdi={`${ogrenci.adSoyad} TYT karnesi`} />
+      <YazdirButonu dosyaAdi={`${ogrenci.adSoyad} ${sinavTuru} karnesi`} />
     </SayfaUstu>
   );
 
@@ -66,8 +75,8 @@ export default async function OgrenciDetaySayfasi({
         {baslik}
         <DurumMesaji durum={durum} tasinan={tasinan} />
         <BosDurum
-          baslik="Bu öğrencinin sonucu yok"
-          aciklama="Kayıt var; henüz hiçbir denemede sonucu bulunmuyor."
+          baslik={`Bu öğrencinin ${sinavTuru} sonucu yok`}
+          aciklama={`${sinavTuru} denemesi yüklendiğinde net ve kazanımlar burada görünür.`}
           baglantiYazisi="Deneme yükle"
           baglantiYolu="/panel/denemeler/yukle"
         />
@@ -87,11 +96,16 @@ export default async function OgrenciDetaySayfasi({
     puan: sonuc.puan,
   }));
 
+  const gruplar = mevcutGrupSirasi(
+    sinavTuru,
+    sonuclar.flatMap((sonuc) => sonuc.dersler.filter((ders) => ders.isGrup).map((ders) => ders.dersGrubu)),
+  );
+
   const grupTrendVerisi = sonuclar.map((sonuc) => {
     const satir: Record<string, string | number | null> = {
       etiket: kisaTarih(sonuc.exam.tarih),
     };
-    for (const grup of GRUP_SIRASI) {
+    for (const grup of gruplar) {
       const ders = sonuc.dersler.find((d) => d.isGrup && d.dersGrubu === grup);
       satir[grup] = ders?.net ?? null;
     }
@@ -163,7 +177,7 @@ export default async function OgrenciDetaySayfasi({
               <tr>
                 <th>Deneme</th>
                 <th>Tarih</th>
-                {GRUP_SIRASI.map((grup) => (
+                {gruplar.map((grup) => (
                   <th key={grup} className="sayi">
                     {grupKisaAdi(grup)}
                   </th>
@@ -190,7 +204,7 @@ export default async function OgrenciDetaySayfasi({
                       </HizliLink>
                     </td>
                     <td className="text-slate-600">{kisaTarih(sonuc.exam.tarih)}</td>
-                    {GRUP_SIRASI.map((grup) => (
+                    {gruplar.map((grup) => (
                       <td key={grup} className="sayi text-slate-600">
                         {grupNetleri.has(grup) ? net(grupNetleri.get(grup)) : "—"}
                       </td>
@@ -352,12 +366,11 @@ export default async function OgrenciDetaySayfasi({
           <CizgiGrafik
             veri={grupTrendVerisi}
             yukseklik={280}
-            seriler={[
-              { anahtar: "TYT Türkçe", ad: "Türkçe", renk: GRAFIK_RENKLERI.marka },
-              { anahtar: "TYT Sosyal", ad: "Sosyal", renk: GRAFIK_RENKLERI.turkuaz },
-              { anahtar: "TYT Matematik", ad: "Matematik", renk: GRAFIK_RENKLERI.turuncu },
-              { anahtar: "TYT Fen", ad: "Fen", renk: GRAFIK_RENKLERI.mor },
-            ]}
+            seriler={gruplar.map((grup, index) => ({
+              anahtar: grup,
+              ad: grupKisaAdi(grup),
+              renk: BOLUM_RENKLERI[grup] ?? BOLUM_PALET[index % BOLUM_PALET.length],
+            }))}
           />
         </div>
       </Kart>
@@ -365,6 +378,7 @@ export default async function OgrenciDetaySayfasi({
 
       <RehberlikKarnesi
         kurumAd={kurum.ad}
+        sinavTuru={sinavTuru}
         ogrenci={ogrenci}
         denemeler={denemeOzetleri}
         sonDeneme={denemeOzetleri[denemeOzetleri.length - 1]}
@@ -382,7 +396,20 @@ const BOLUM_RENKLERI: Record<string, string> = {
   "TYT Sosyal": GRAFIK_RENKLERI.turkuaz,
   "TYT Matematik": GRAFIK_RENKLERI.turuncu,
   "TYT Fen": GRAFIK_RENKLERI.mor,
+  "AYT Edebiyat": GRAFIK_RENKLERI.marka,
+  "AYT Sosyal": GRAFIK_RENKLERI.turkuaz,
+  "AYT Matematik": GRAFIK_RENKLERI.turuncu,
+  "AYT Fen": GRAFIK_RENKLERI.mor,
 };
+
+const BOLUM_PALET = [
+  GRAFIK_RENKLERI.marka,
+  GRAFIK_RENKLERI.turkuaz,
+  GRAFIK_RENKLERI.turuncu,
+  GRAFIK_RENKLERI.mor,
+  GRAFIK_RENKLERI.yesil,
+  GRAFIK_RENKLERI.kirmizi,
+];
 
 function konuDurumuDilimleri(kazanimlar: { soru: number; basariYuzde: number | null }[]) {
   const bantlar = [

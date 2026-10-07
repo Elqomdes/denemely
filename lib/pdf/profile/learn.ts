@@ -20,13 +20,13 @@ export interface OgrenmeSonucu {
   dogrulama: ProfilDogrulama;
 }
 
-const SISTEM = `Sen Denemely için TYT deneme sonuç belgesi şablon mühendisisin.
+const SISTEM = `Sen Denemely için TYT ve AYT deneme sonuç belgesi şablon mühendisisin.
 
 Görevin: verilen PDF sayfa dökümünden BELİRLEYİCİ bir FormatProfile JSON üretmek.
 Sayıları, adları veya netleri sen uydurmayacaksın. Yalnızca tokenların nerede durduğunu tarif edeceksin; kod bu haritayla PDF'ten okuyacak.
 
 Kurallar:
-- V1 yalnızca TYT (Türkçe, Sosyal, Matematik, Fen). AYT kolonları soru=0 ise yok sayılır.
+- TYT grupları: Türkçe, Sosyal, Matematik, Fen. AYT grupları: Edebiyat, Sosyal, Matematik, Fen. Soru=0 kolonları yok sayılır.
 - tespit.zorunlu: bu yayını diğerlerinden ayıran 2-5 benzersiz metin/regex. Genel "TYT" tek başına yetmez.
 - Regex'ler sayfada GÖRÜNEN metne uymalı. Geçersiz regex yazma.
 - Kullanılmayan metin alanlarını boş string, kullanılmayan indeksleri -1 yap.

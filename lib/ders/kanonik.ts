@@ -27,7 +27,7 @@ function dersAnahtari(hamAd: string): string {
     .replaceAll("ü", "u");
 }
 
-const TAKMA_ADLAR: Record<string, (typeof TYT_DERSLERI)[number]> = {
+const TAKMA_ADLAR: Record<string, string> = {
   turkce: "Türkçe",
   tytturkce: "Türkçe",
   tarih: "Tarih",
@@ -55,13 +55,49 @@ const TAKMA_ADLAR: Record<string, (typeof TYT_DERSLERI)[number]> = {
   kim1: "Kimya",
   biyoloji: "Biyoloji",
   biy1: "Biyoloji",
+  edebiyat: "Edebiyat",
+  turkdilipeedebiyati: "Edebiyat",
+  turkdilipeedebiyat: "Edebiyat",
+  tde: "Edebiyat",
+  tarih2: "Tarih-2",
+  tar2: "Tarih-2",
+  cografya2: "Coğrafya-2",
+  cog2: "Coğrafya-2",
+  felsefegrubu: "Felsefe Grubu",
+  fel2: "Felsefe Grubu",
+  matematik2: "Matematik",
+  aytmatematik: "Matematik",
+  fizik2: "Fizik",
+  fiz2: "Fizik",
+  kimya2: "Kimya",
+  kim2: "Kimya",
+  biyoloji2: "Biyoloji",
+  biy2: "Biyoloji",
 };
 
 /** Bolum satiri. Alt ders degil; Sosyal ve Fen burada ders adi olmaz. */
-const BOLUM_ADLARI = new Set(["tytsosyal", "sosyal", "tytfen", "fen", "tytmatematik"]);
+const BOLUM_ADLARI = new Set([
+  "tytsosyal",
+  "sosyal",
+  "tytfen",
+  "fen",
+  "tytmatematik",
+  "aytsosyal",
+  "aytfen",
+  "aytedebiyat",
+  "aytmatematik",
+]);
+
+const DERS_SIRASI = [
+  ...TYT_DERSLERI,
+  "Edebiyat",
+  "Tarih-2",
+  "Coğrafya-2",
+  "Felsefe Grubu",
+];
 
 export function dersSiraNo(dersAdi: string): number {
-  const index = TYT_DERSLERI.indexOf(dersAdi as (typeof TYT_DERSLERI)[number]);
+  const index = DERS_SIRASI.indexOf(dersAdi);
   return index === -1 ? 99 : index;
 }
 
@@ -77,7 +113,11 @@ export function kanonikDersAdi(hamAd: string): string | null {
   const dogrudan = TAKMA_ADLAR[anahtar];
   if (dogrudan) return dogrudan;
 
+  if (anahtar.includes("edebiyat") || anahtar === "tde") return "Edebiyat";
   if (anahtar.includes("turkce")) return "Türkçe";
+  if (anahtar.includes("tarih2") || anahtar === "tar2") return "Tarih-2";
+  if (anahtar.includes("cografya2") || anahtar === "cog2") return "Coğrafya-2";
+  if (anahtar.includes("felsefegrubu")) return "Felsefe Grubu";
   if (anahtar.includes("tarih") || anahtar.startsWith("tar")) return "Tarih";
   if (anahtar.includes("cograf") || anahtar.startsWith("cog")) return "Coğrafya";
   if (anahtar.includes("felsefe") || anahtar.startsWith("fel")) return "Felsefe";

@@ -2,30 +2,38 @@ import Link from "next/link";
 import { HizliLink } from "@/components/HizliLink";
 import { BosDurum, Kart } from "@/components/Kutu";
 import { SayfaUstu } from "@/components/SayfaUstu";
+import { SinavTuruSecici } from "@/components/SinavTuruSecici";
 import { ogrenciListesi } from "@/lib/analiz";
 import { kurumOturumuGerekli } from "@/lib/auth/guards";
 import { kisaTarih, net, puan, tamSayi } from "@/lib/format";
 import { birlestirmeAdaylari } from "@/lib/ogrenci/islemler";
+import { parseSinavTuru, sinavQuery } from "@/lib/sinav";
 
 export const metadata = { title: "Öğrenciler" };
 
 export default async function OgrencilerSayfasi({
   searchParams,
 }: {
-  searchParams: Promise<{ arama?: string; sinif?: string }>;
+  searchParams: Promise<{ arama?: string; sinif?: string; sinav?: string }>;
 }) {
   const { kurum } = await kurumOturumuGerekli();
-  const { arama, sinif } = await searchParams;
+  const { arama, sinif, sinav } = await searchParams;
+  const sinavTuru = parseSinavTuru(sinav);
   const [{ ogrenciler, siniflar, sonDeneme }, adaylar] = await Promise.all([
-    ogrenciListesi(kurum.id, { arama, sinif }),
+    ogrenciListesi(kurum.id, { arama, sinif, sinavTuru }),
     birlestirmeAdaylari(kurum.id),
   ]);
 
   const filtreVar = Boolean(arama || sinif);
+  const filtreParams = { arama, sinif };
 
   return (
     <div className="space-y-4">
-      <SayfaUstu baslik="Öğrenciler" meta={sonDeneme ? `Son deneme: ${sonDeneme.ad}` : undefined}>
+      <SayfaUstu
+        baslik="Öğrenciler"
+        meta={sonDeneme ? `Son ${sinavTuru}: ${sonDeneme.ad}` : `Henüz ${sinavTuru} denemesi yok`}
+      >
+        <SinavTuruSecici deger={sinavTuru} yol="/panel/ogrenciler" params={filtreParams} />
         <Link href="/panel/ogrenciler/birlestir" className="btn btn-ikincil btn-kucuk">
           Kayıt birleştir{adaylar.length > 0 ? ` (${tamSayi(adaylar.length)})` : ""}
         </Link>
@@ -53,6 +61,7 @@ export default async function OgrencilerSayfasi({
       ) : (
         <Kart>
           <form className="flex flex-wrap items-end gap-2 border-b border-cerceve px-3 py-2.5" method="get">
+            <input type="hidden" name="sinav" value={sinavTuru} />
             <div className="min-w-48 flex-1">
               <label htmlFor="arama" className="sr-only">
                 Öğrenci ara
@@ -83,13 +92,13 @@ export default async function OgrencilerSayfasi({
               Filtrele
             </button>
             {filtreVar ? (
-              <Link href="/panel/ogrenciler" className="btn btn-ikincil">
+              <Link href={`/panel/ogrenciler?${sinavQuery(sinavTuru)}`} className="btn btn-ikincil">
                 Temizle
               </Link>
             ) : null}
             <p className="ml-auto text-[12.5px] text-slate-500">
               {tamSayi(ogrenciler.length)} öğrenci
-              {sonDeneme ? ` · son kolon: ${kisaTarih(sonDeneme.tarih)}` : ""}
+              {sonDeneme ? ` · ${sinavTuru} son kolon: ${kisaTarih(sonDeneme.tarih)}` : ` · ${sinavTuru}`}
             </p>
           </form>
 
@@ -102,7 +111,7 @@ export default async function OgrencilerSayfasi({
                   <tr>
                     <th>Öğrenci</th>
                     <th>Sınıf</th>
-                    <th className="sayi">Deneme</th>
+                    <th className="sayi">{sinavTuru} deneme</th>
                     <th className="sayi">Ort. net</th>
                     <th className="sayi">En yüksek</th>
                     <th className="sayi">Son deneme</th>
@@ -113,7 +122,10 @@ export default async function OgrencilerSayfasi({
                   {ogrenciler.map((ogrenci) => (
                     <tr key={ogrenci.id}>
                       <td>
-                        <HizliLink href={`/panel/ogrenciler/${ogrenci.id}`} className="baglanti">
+                        <HizliLink
+                          href={`/panel/ogrenciler/${ogrenci.id}?sinav=${sinavTuru}`}
+                          className="baglanti"
+                        >
                           {ogrenci.adSoyad}
                         </HizliLink>
                         {ogrenci.ogrenciNo && ogrenci.ogrenciNo !== "0" ? (

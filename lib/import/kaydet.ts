@@ -2,7 +2,8 @@ import { kanonikDersAdi } from "@/lib/ders/kanonik";
 import { prisma } from "@/lib/db";
 import { resolveDersGrubu } from "@/lib/pdf/parseUtils";
 import { ogrenciCozumleVeyaOlustur } from "@/lib/ogrenci/eslestirme";
-import type { ParsedExamFile } from "@/lib/pdf/types";
+import type { ParsedAnswerSheet, ParsedExamFile, ParsedSubject, ParsedTopic } from "@/lib/pdf/types";
+import { grupKumesi, parseSinavTuru } from "@/lib/sinav";
 
 export interface KayitSonucu {
   examId: string;
@@ -22,12 +23,13 @@ export interface KayitGirdisi {
 
 /**
  * Ayristirilan denemeyi veritabanina yazar.
- * Ayni deneme (kurum + ad + tarih) tekrar yuklenirse mevcut kayit guncellenir,
- * ogrencinin onceki sonucu silinip yenisi yazilir. Boylece tekrar yukleme
- * kopya olusturmaz.
+ * Ayni deneme (kurum + ad + tarih + sinav turu) tekrar yuklenirse mevcut kayit
+ * guncellenir, ogrencinin onceki sonucu silinip yenisi yazilir. Boylece tekrar
+ * yukleme kopya olusturmaz; TYT ve AYT ayni ad/tarihte ayri kalir.
  */
 export async function denemeyiKaydet(girdi: KayitGirdisi): Promise<KayitSonucu> {
-  const { institutionId, yukleyenId, parsed, denemeAdi, tarih, sinavTuru, kaynakDosya } = girdi;
+  const { institutionId, yukleyenId, parsed, denemeAdi, tarih, kaynakDosya } = girdi;
+  const sinavTuru = parseSinavTuru(girdi.sinavTuru);
 
   const toplamSoru = parsed.ogrenciler[0]?.toplam.soru ?? 0;
 
@@ -36,7 +38,9 @@ export async function denemeyiKaydet(girdi: KayitGirdisi): Promise<KayitSonucu> 
     : parsed.format;
 
   const exam = await prisma.exam.upsert({
-    where: { institutionId_ad_tarih: { institutionId, ad: denemeAdi, tarih } },
+    where: {
+      institutionId_ad_tarih_sinavTuru: { institutionId, ad: denemeAdi, tarih, sinavTuru },
+    },
     update: { format, sinavTuru, kaynakDosya, toplamSoru, yukleyenId },
     create: {
       institutionId,
@@ -98,7 +102,7 @@ export async function denemeyiKaydet(girdi: KayitGirdisi): Promise<KayitSonucu> 
         select: { id: true },
       });
 
-      const dersKayitlari = ogrenci.dersler.flatMap((ders) => {
+      const dersKayitlari = sinavaGoreDersler(ogrenci.dersler, sinavTuru).flatMap((ders) => {
         const dersAdi = ders.isGrup ? ders.dersAdi : kanonikDersAdi(ders.dersAdi);
         if (!dersAdi) return [];
         return [
@@ -123,7 +127,7 @@ export async function denemeyiKaydet(girdi: KayitGirdisi): Promise<KayitSonucu> 
         await tx.subjectResult.createMany({ data: dersKayitlari });
       }
 
-      const kazanimKayitlari = ogrenci.kazanimlar.flatMap((kazanim) => {
+      const kazanimKayitlari = sinavaGoreKazanimlar(ogrenci.kazanimlar, sinavTuru).flatMap((kazanim) => {
         const dersAdi = kanonikDersAdi(kazanim.dersAdi);
         if (!dersAdi) return [];
         return [
@@ -145,7 +149,7 @@ export async function denemeyiKaydet(girdi: KayitGirdisi): Promise<KayitSonucu> 
 
       if (ogrenci.cevaplar.length > 0) {
         await tx.answerSheet.createMany({
-          data: ogrenci.cevaplar.map((cevap) => ({
+          data: sinavaGoreCevaplar(ogrenci.cevaplar, sinavTuru).map((cevap) => ({
             examResultId: sonuc.id,
             dersGrubu: cevap.dersGrubu,
             kitapcik: cevap.kitapcik,
@@ -160,4 +164,25 @@ export async function denemeyiKaydet(girdi: KayitGirdisi): Promise<KayitSonucu> 
   }
 
   return { examId: exam.id, eklenenOgrenci, kaydedilenSonuc };
+}
+
+function sinavaGoreDersler(dersler: ParsedSubject[], sinavTuru: ReturnType<typeof parseSinavTuru>) {
+  const kume = grupKumesi(sinavTuru);
+  const secilen = dersler.filter((ders) => kume.has(ders.dersGrubu));
+  return secilen.length > 0 ? secilen : dersler;
+}
+
+function sinavaGoreKazanimlar(kazanimlar: ParsedTopic[], sinavTuru: ReturnType<typeof parseSinavTuru>) {
+  const kume = grupKumesi(sinavTuru);
+  const secilen = kazanimlar.filter((kazanim) => kume.has(kazanim.dersGrubu));
+  return secilen.length > 0 ? secilen : kazanimlar;
+}
+
+function sinavaGoreCevaplar(
+  cevaplar: ParsedAnswerSheet[],
+  sinavTuru: ReturnType<typeof parseSinavTuru>,
+) {
+  const kume = grupKumesi(sinavTuru);
+  const secilen = cevaplar.filter((cevap) => kume.has(cevap.dersGrubu));
+  return secilen.length > 0 ? secilen : cevaplar;
 }

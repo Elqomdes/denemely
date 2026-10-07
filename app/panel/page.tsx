@@ -5,29 +5,41 @@ import { HizliLink } from "@/components/HizliLink";
 import { YukleIkonu } from "@/components/Ikonlar";
 import { BosDurum, Kart } from "@/components/Kutu";
 import { OlcutSerit, SayfaUstu } from "@/components/SayfaUstu";
+import { SinavTuruSecici } from "@/components/SinavTuruSecici";
 import { grupKisaAdi, kurumOzeti } from "@/lib/analiz";
 import { kurumOturumuGerekli } from "@/lib/auth/guards";
 import { basariArkaPlani, kisaTarih, net, puan, tamSayi, yuzde } from "@/lib/format";
 import { birlestirmeAdaylari } from "@/lib/ogrenci/islemler";
+import { parseSinavTuru } from "@/lib/sinav";
 
 export const metadata = { title: "Genel Bakış" };
 
-export default async function PanelAnaSayfa() {
+export default async function PanelAnaSayfa({
+  searchParams,
+}: {
+  searchParams: Promise<{ sinav?: string }>;
+}) {
   const { kurum } = await kurumOturumuGerekli();
-  const [ozet, adaylar] = await Promise.all([kurumOzeti(kurum.id), birlestirmeAdaylari(kurum.id)]);
+  const { sinav } = await searchParams;
+  const sinavTuru = parseSinavTuru(sinav);
+  const [ozet, adaylar] = await Promise.all([
+    kurumOzeti(kurum.id, sinavTuru),
+    birlestirmeAdaylari(kurum.id),
+  ]);
 
   if (ozet.denemeSayisi === 0) {
     return (
       <div>
         <SayfaUstu baslik="Genel bakış">
+          <SinavTuruSecici deger={sinavTuru} yol="/panel" />
           <Link href="/panel/denemeler/yukle" className="btn btn-birincil btn-kucuk">
             <YukleIkonu className="h-4 w-4" />
             Deneme yükle
           </Link>
         </SayfaUstu>
         <BosDurum
-          baslik="Henüz deneme yok"
-          aciklama="İlk sonuç belgesini yüklediğinizde öğrenciler ve analizler burada oluşur."
+          baslik={`Henüz ${sinavTuru} denemesi yok`}
+          aciklama={`${sinavTuru} sonuç belgesini yüklediğinizde analizler burada oluşur.`}
           baglantiYazisi="Deneme yükle"
           baglantiYolu="/panel/denemeler/yukle"
         />
@@ -44,8 +56,9 @@ export default async function PanelAnaSayfa() {
     <div className="space-y-6">
       <SayfaUstu
         baslik="Genel bakış"
-        meta={ozet.sonDeneme ? `Son deneme: ${ozet.sonDeneme.ad}` : undefined}
+        meta={ozet.sonDeneme ? `Son ${sinavTuru}: ${ozet.sonDeneme.ad}` : undefined}
       >
+        <SinavTuruSecici deger={sinavTuru} yol="/panel" />
         <Link href="/panel/denemeler/yukle" className="btn btn-birincil btn-kucuk">
           <YukleIkonu className="h-4 w-4" />
           Deneme yükle

@@ -53,6 +53,30 @@ const SUBJECT_GROUPS: Array<[string, string[]]> = [
   ],
   ["TYT Matematik", ["Matematik-1", "Matematik", "Geometri", "T. MAT", "T.MAT", "GEO-1"]],
   ["TYT Fen", ["Fizik", "Kimya", "Biyoloji", "FİZ-1", "KİM-1", "BİY-1"]],
+  [
+    "AYT Edebiyat",
+    ["Edebiyat", "Türk Dili ve Edebiyatı", "Türk Dili ve Edebiyat", "TDE", "EDE", "AYT Edebiyat"],
+  ],
+  [
+    "AYT Sosyal",
+    [
+      "Tarih-2",
+      "TAR-2",
+      "Coğrafya-2",
+      "COĞ-2",
+      "COG-2",
+      "Felsefe Grubu",
+      "FEL-2",
+      "AYT Sosyal",
+      "AYT Tarih-1",
+      "AYT Coğrafya-1",
+    ],
+  ],
+  ["AYT Matematik", ["AYT Matematik", "Matematik-2", "MAT-2", "A. MAT", "AMAT", "AYT MAT"]],
+  [
+    "AYT Fen",
+    ["AYT Fen", "Fizik-2", "FİZ-2", "Kimya-2", "KİM-2", "Biyoloji-2", "BİY-2", "FİZİK-2", "KİMYA-2"],
+  ],
 ];
 for (const [group, subjects] of SUBJECT_GROUPS) {
   for (const subject of subjects) GROUP_BY_SUBJECT[normalizeKey(subject)] = group;
@@ -70,6 +94,15 @@ export function resolveDersGrubu(dersAdi: string, fallback?: string | null): str
   for (const group of DERS_GRUBU_ADLARI) {
     if (normalizeKey(group) === key) return group;
   }
+
+  if (/edebiyat|turkdili|tde/.test(key)) return "AYT Edebiyat";
+  if (/matematik2|mat2|aytmat/.test(key)) return "AYT Matematik";
+  if (/fizik2|fiz2|kimya2|kim2|biyoloji2|biy2|aytfen/.test(key)) return "AYT Fen";
+  if (/tarih2|tar2|cografya2|cog2|felsefegrubu|fel2|aytsosyal/.test(key)) return "AYT Sosyal";
+  if (/^ayt/.test(key) && /mat/.test(key)) return "AYT Matematik";
+  if (/^ayt/.test(key) && /fen|fiz|kim|biy/.test(key)) return "AYT Fen";
+  if (/^ayt/.test(key) && /sosyal|tarih|cograf|fel/.test(key)) return "AYT Sosyal";
+  if (/^ayt/.test(key) && /edebiyat|tde/.test(key)) return "AYT Edebiyat";
 
   if (/turkce|türkçe|dilanlatim/.test(key)) return "TYT Türkçe";
   if (/matematik|geometri/.test(key)) return "TYT Matematik";

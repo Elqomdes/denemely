@@ -214,6 +214,7 @@ function KonuKutusu({
 
 export function RehberlikKarnesi({
   kurumAd,
+  sinavTuru = "TYT",
   ogrenci,
   denemeler,
   sonDeneme,
@@ -223,6 +224,7 @@ export function RehberlikKarnesi({
   kazanimlar,
 }: {
   kurumAd: string;
+  sinavTuru?: string;
   ogrenci: { adSoyad: string; sinif: string | null; ogrenciNo: string | null };
   denemeler: DenemeOzet[];
   sonDeneme: DenemeOzet;
@@ -281,7 +283,7 @@ export function RehberlikKarnesi({
       <header className="karne-renk flex items-center justify-between gap-4 rounded-lg bg-slate-900 px-4 py-3 text-white">
         <div>
           <Logo boyut="sm" ton="acik" />
-          <p className="mt-1 text-[12px] text-slate-300">TYT gelişim karnesi</p>
+          <p className="mt-1 text-[12px] text-slate-300">{sinavTuru} gelişim karnesi</p>
         </div>
         <div className="text-right text-[12px] text-slate-300">
           <p className="font-medium text-white">{kurumAd}</p>

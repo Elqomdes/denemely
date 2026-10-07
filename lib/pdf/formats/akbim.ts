@@ -3,8 +3,9 @@
  *
  * Sayfa düzeni diğer iki formattan farklı: dersler yatay kolon, kimlik tek satır,
  * cevap anahtarı ile öğrenci cevabı alt alta, kazanımlar üç sütun.
- * V1'de yalnızca soru sayısı > 0 olan TYT kolonları alınır.
+ * Soru sayısı > 0 olan TYT ve AYT kolonları alınır.
  */
+import { SINAV_GRUP_SET } from "@/lib/sinav";
 import type { PdfLine, PdfPage, PdfToken } from "../extract";
 import {
   hesaplaNet,
@@ -20,13 +21,16 @@ import type {
   ParsedTopic,
 } from "../types";
 
-const TYT_GRUPLARI = new Set(["TYT Türkçe", "TYT Sosyal", "TYT Matematik", "TYT Fen"]);
-
 const CEVAP_ETIKETLERI: Record<string, string> = {
   TURKCE: "TYT Türkçe",
   SOSYAL: "TYT Sosyal",
   TMAT: "TYT Matematik",
   FEN: "TYT Fen",
+  EDEBIYAT: "AYT Edebiyat",
+  TDE: "AYT Edebiyat",
+  AMAT: "AYT Matematik",
+  AYTMAT: "AYT Matematik",
+  AYTFEN: "AYT Fen",
 };
 
 export function parseAkbimPage(page: PdfPage): ParsedStudentPage {
@@ -185,7 +189,7 @@ function parseDersTablosu(lines: PdfLine[], uyarilar: string[]) {
     const soru = sorular.get(kolon.ad) ?? 0;
     if (soru <= 0) continue;
     const grup = resolveDersGrubu(kolon.ad);
-    if (!TYT_GRUPLARI.has(grup)) continue;
+    if (!SINAV_GRUP_SET.has(grup)) continue;
 
     const dogru = dogrular.get(kolon.ad) ?? 0;
     const yanlis = yanlislar.get(kolon.ad) ?? 0;
@@ -209,7 +213,7 @@ function parseDersTablosu(lines: PdfLine[], uyarilar: string[]) {
   }
 
   normalizeGroupFlags(dersler);
-  if (dersler.length === 0) uyarilar.push("TYT ders kolonları okunamadı.");
+  if (dersler.length === 0) uyarilar.push("Ders kolonları okunamadı.");
 
   const soru = dersler.reduce((s, d) => s + d.soru, 0);
   const dogru = dersler.reduce((s, d) => s + d.dogru, 0);

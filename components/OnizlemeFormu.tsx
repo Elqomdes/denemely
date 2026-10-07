@@ -60,7 +60,9 @@ export function OnizlemeFormu({
         </label>
         <select id="sinavTuru" name="sinavTuru" defaultValue="TYT" className="alan">
           <option value="TYT">TYT</option>
+          <option value="AYT">AYT</option>
         </select>
+        <p className="alan-ipucu">Öğrenci ve deneme listelerinde bu türe göre ayrı görünür.</p>
       </div>
 
       {durum.hata ? (
@@ -74,7 +76,7 @@ export function OnizlemeFormu({
           {bekliyor ? "Kaydediliyor…" : `${ogrenciSayisi} öğrenciyi kaydet`}
         </button>
         <p className="text-xs text-slate-500">
-          Aynı ad ve tarihte bir deneme varsa sonuçları güncellenir, kopya oluşmaz.
+          Aynı ad, tarih ve sınav türünde bir deneme varsa sonuçları güncellenir, kopya oluşmaz.
         </p>
       </div>
     </form>

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { kurumOturumuGerekli } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db";
+import { parseSinavTuru } from "@/lib/sinav";
 
 /**
  * Yanlis yuklenen bir denemeyi siler. Sonuclar, ders/kazanim/cevap kayitlari
@@ -15,7 +16,7 @@ export async function denemeSil(formData: FormData): Promise<void> {
 
   const deneme = await prisma.exam.findFirst({
     where: { id: examId, institutionId: kurum.id },
-    select: { id: true },
+    select: { id: true, sinavTuru: true },
   });
   if (!deneme) redirect("/panel/denemeler");
 
@@ -24,5 +25,5 @@ export async function denemeSil(formData: FormData): Promise<void> {
   revalidatePath("/panel");
   revalidatePath("/panel/denemeler");
   revalidatePath("/panel/ogrenciler");
-  redirect("/panel/denemeler?durum=silindi");
+  redirect(`/panel/denemeler?durum=silindi&sinav=${parseSinavTuru(deneme.sinavTuru)}`);
 }

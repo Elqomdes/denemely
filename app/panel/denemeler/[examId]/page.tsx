@@ -6,7 +6,8 @@ import { HizliLink } from "@/components/HizliLink";
 import { Kart } from "@/components/Kutu";
 import { OlcutSerit, SayfaUstu } from "@/components/SayfaUstu";
 import { SilButonu } from "@/components/SilButonu";
-import { GRUP_SIRASI, denemeDetayi, grupKisaAdi } from "@/lib/analiz";
+import { denemeDetayi, grupKisaAdi } from "@/lib/analiz";
+import { mevcutGrupSirasi, parseSinavTuru } from "@/lib/sinav";
 import { kurumOturumuGerekli } from "@/lib/auth/guards";
 import { basariArkaPlani, net, puan, tamSayi, tarih, yuzde } from "@/lib/format";
 import { formatEtiketi } from "@/lib/pdf/types";
@@ -33,6 +34,11 @@ export default async function DenemeDetaySayfasi({
   if (!detay) notFound();
 
   const { deneme, sonuclar, gruplar, dersler, zayifKazanimlar } = detay;
+  const sinavTuru = parseSinavTuru(deneme.sinavTuru);
+  const grupSirasi = mevcutGrupSirasi(
+    sinavTuru,
+    gruplar.map((grup) => grup.dersGrubu),
+  );
 
   const netler = sonuclar.map((sonuc) => sonuc.toplamNet);
   const ortalamaNet =
@@ -53,8 +59,8 @@ export default async function DenemeDetaySayfasi({
     <div className="space-y-4">
       <SayfaUstu
         baslik={deneme.ad}
-        meta={`${tarih(deneme.tarih)} · ${formatEtiketi(deneme.format)}${deneme.yukleyen ? ` · ${deneme.yukleyen.adSoyad}` : ""}`}
-        geri={{ yazi: "Denemeler", yol: "/panel/denemeler" }}
+        meta={`${sinavTuru} · ${tarih(deneme.tarih)} · ${formatEtiketi(deneme.format)}${deneme.yukleyen ? ` · ${deneme.yukleyen.adSoyad}` : ""}`}
+        geri={{ yazi: "Denemeler", yol: `/panel/denemeler?sinav=${sinavTuru}` }}
       >
         <Link href={`/panel/denemeler/${deneme.id}/sorular`} className="btn btn-birincil btn-kucuk">
           Soru analizi
@@ -95,7 +101,7 @@ export default async function DenemeDetaySayfasi({
                 <th className="sayi">#</th>
                 <th>Öğrenci</th>
                 <th>Sınıf</th>
-                {GRUP_SIRASI.map((grup) => (
+                {grupSirasi.map((grup) => (
                   <th key={grup} className="sayi">
                     {grupKisaAdi(grup)}
                   </th>
@@ -112,12 +118,15 @@ export default async function DenemeDetaySayfasi({
                   <tr key={sonuc.id}>
                     <td className="sayi text-slate-400">{index + 1}</td>
                     <td>
-                      <HizliLink href={`/panel/ogrenciler/${sonuc.student.id}`} className="baglanti">
+                      <HizliLink
+                        href={`/panel/ogrenciler/${sonuc.student.id}?sinav=${sinavTuru}`}
+                        className="baglanti"
+                      >
                         {sonuc.student.adSoyad}
                       </HizliLink>
                     </td>
                     <td className="text-slate-600">{sonuc.student.sinif ?? "—"}</td>
-                    {GRUP_SIRASI.map((grup) => (
+                    {grupSirasi.map((grup) => (
                       <td key={grup} className="sayi text-slate-600">
                         {grupNetleri.has(grup) ? net(grupNetleri.get(grup)) : "—"}
                       </td>

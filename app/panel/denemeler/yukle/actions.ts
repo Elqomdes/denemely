@@ -8,6 +8,7 @@ import { denemeyiKaydet } from "@/lib/import/kaydet";
 import { asamaKaydet, asamaOku, asamaSil } from "@/lib/import/staging";
 import { DesteklenmeyenFormatHatasi } from "@/lib/pdf/detect";
 import { parseExamPdf, ProfilOgrenmeHatasi } from "@/lib/pdf/parseExamPdf";
+import { parseSinavTuru } from "@/lib/sinav";
 
 const MAKS_BOYUT = 25 * 1024 * 1024;
 
@@ -81,7 +82,7 @@ export async function denemeOnayla(
   const token = String(formData.get("token") ?? "");
   const denemeAdi = String(formData.get("denemeAdi") ?? "").trim();
   const tarihMetni = String(formData.get("tarih") ?? "").trim();
-  const sinavTuru = String(formData.get("sinavTuru") ?? "TYT").trim() || "TYT";
+  const sinavTuru = parseSinavTuru(formData.get("sinavTuru"));
 
   if (!denemeAdi) return { hata: "Deneme adı gerekli." };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(tarihMetni)) return { hata: "Geçerli bir tarih seçin." };

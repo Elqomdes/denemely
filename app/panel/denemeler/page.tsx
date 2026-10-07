@@ -2,24 +2,29 @@ import Link from "next/link";
 import { HizliLink } from "@/components/HizliLink";
 import { BosDurum, Etiket, Kart } from "@/components/Kutu";
 import { SayfaUstu } from "@/components/SayfaUstu";
+import { SinavTuruSecici } from "@/components/SinavTuruSecici";
 import { denemeListesi } from "@/lib/analiz";
 import { kurumOturumuGerekli } from "@/lib/auth/guards";
 import { kisaTarih, net, puan, tamSayi } from "@/lib/format";
 import { formatEtiketi } from "@/lib/pdf/types";
+import { parseSinavTuru } from "@/lib/sinav";
 
 export const metadata = { title: "Denemeler" };
 
 export default async function DenemelerSayfasi({
   searchParams,
 }: {
-  searchParams: Promise<{ durum?: string }>;
+  searchParams: Promise<{ durum?: string; sinav?: string }>;
 }) {
   const { kurum } = await kurumOturumuGerekli();
-  const [denemeler, { durum }] = await Promise.all([denemeListesi(kurum.id), searchParams]);
+  const { durum, sinav } = await searchParams;
+  const sinavTuru = parseSinavTuru(sinav);
+  const denemeler = await denemeListesi(kurum.id, sinavTuru);
 
   return (
     <div className="space-y-4">
-      <SayfaUstu baslik="Denemeler" meta={`${tamSayi(denemeler.length)} kayıt`}>
+      <SayfaUstu baslik="Denemeler" meta={`${tamSayi(denemeler.length)} ${sinavTuru} kaydı`}>
+        <SinavTuruSecici deger={sinavTuru} yol="/panel/denemeler" />
         <Link href="/panel/denemeler/yukle" className="btn btn-birincil btn-kucuk">
           Deneme yükle
         </Link>
@@ -33,8 +38,8 @@ export default async function DenemelerSayfasi({
 
       {denemeler.length === 0 ? (
         <BosDurum
-          baslik="Henüz deneme yok"
-          aciklama="Sonuç belgesi PDF'ini yükleyerek ilk denemeyi ekleyin."
+          baslik={`Henüz ${sinavTuru} denemesi yok`}
+          aciklama={`${sinavTuru} sonuç belgesini yüklerken sınav türünü ${sinavTuru} seçin.`}
           baglantiYazisi="Deneme yükle"
           baglantiYolu="/panel/denemeler/yukle"
         />
@@ -61,8 +66,7 @@ export default async function DenemelerSayfasi({
                         {deneme.ad}
                       </HizliLink>
                       <p className="mt-0.5 text-[12px] text-slate-500">
-                        {formatEtiketi(deneme.format)} ·{" "}
-                        {tamSayi(deneme.toplamSoru)} soru
+                        {formatEtiketi(deneme.format)} · {tamSayi(deneme.toplamSoru)} soru
                       </p>
                     </td>
                     <td className="text-slate-600">{kisaTarih(deneme.tarih)}</td>
