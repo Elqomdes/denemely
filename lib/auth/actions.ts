@@ -26,6 +26,14 @@ export async function girisYap(
     return { hata: "Kullanıcı adı ve şifre gerekli." };
   }
 
+  const dbUrl = process.env.DENEMELY_DATABASE_URL ?? "";
+  if (!dbUrl.startsWith("postgres://") && !dbUrl.startsWith("postgresql://") && !dbUrl.startsWith("file:")) {
+    return { hata: "Veritabanı bağlantısı yok. Vercel'e DENEMELY_DATABASE_URL ekleyin." };
+  }
+  if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 16) {
+    return { hata: "Oturum anahtarı yok. Vercel'e SESSION_SECRET ekleyin." };
+  }
+
   await veritabaniHazir;
 
   const user = await prisma.user.findUnique({

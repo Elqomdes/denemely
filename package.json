@@ -5,7 +5,8 @@
   "description": "Denemely - Hedefly Egitim Teknolojileri deneme sinavi analiz platformu",
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "prisma generate && next build",
+    "postinstall": "prisma generate",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "db:push": "prisma db push",
