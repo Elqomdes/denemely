@@ -697,10 +697,27 @@ export interface EslesenKazanim {
   denemeSayisi: number;
   yanlisDeneme: number;
   herDenemedeYanlis: boolean;
+  sonDenemedeVar: boolean;
+  sonDenemedeYanlis: boolean;
+  oncekiYanlisDeneme: number;
   soru: number;
   dogru: number;
   yanlis: number;
   basariYuzde: number;
+}
+
+export type KazanimGelisimDurumu = "hala" | "duzeldi" | "yeni" | "olculmedi";
+
+export function kazanimGelisimDurumu(
+  kazanim: EslesenKazanim,
+): KazanimGelisimDurumu | null {
+  if (kazanim.sonDenemedeYanlis && kazanim.oncekiYanlisDeneme > 0) return "hala";
+  if (kazanim.sonDenemedeYanlis) return "yeni";
+  if (kazanim.oncekiYanlisDeneme > 0 && kazanim.sonDenemedeVar && !kazanim.sonDenemedeYanlis) {
+    return "duzeldi";
+  }
+  if (kazanim.oncekiYanlisDeneme > 0 && !kazanim.sonDenemedeVar) return "olculmedi";
+  return null;
 }
 
 /** Ayni kazanim metnini denemeler arasinda toplar. */
@@ -715,6 +732,7 @@ export function kazanimlariEslestir(
     yanlis: number;
   }>,
   denemeSayisi: number,
+  sonExamResultId?: string,
 ): EslesenKazanim[] {
   const harita = new Map<
     string,
@@ -768,11 +786,19 @@ export function kazanimlariEslestir(
       const yanlisDeneme = [...oturumlar.values()].filter(
         (oturum) => oturum.dogru === 0 && oturum.yanlis > 0,
       ).length;
+      const sonOturum = sonExamResultId ? oturumlar.get(sonExamResultId) : undefined;
+      const oncekiYanlisDeneme = [...oturumlar.entries()].filter(
+        ([oturumId, oturum]) =>
+          oturumId !== sonExamResultId && oturum.dogru === 0 && oturum.yanlis > 0,
+      ).length;
       return {
         ...kayit,
         denemeSayisi: gorulen,
         yanlisDeneme,
         herDenemedeYanlis: gorulen >= esik && yanlisDeneme === gorulen,
+        sonDenemedeVar: Boolean(sonOturum),
+        sonDenemedeYanlis: Boolean(sonOturum && sonOturum.dogru === 0 && sonOturum.yanlis > 0),
+        oncekiYanlisDeneme,
         basariYuzde: kayit.soru > 0 ? (kayit.dogru / kayit.soru) * 100 : 0,
       };
     })

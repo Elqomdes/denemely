@@ -5,6 +5,7 @@ import { GRAFIK_RENKLERI } from "@/components/grafikler/renkler";
 import { HizliLink } from "@/components/HizliLink";
 import { BosDurum, Kart } from "@/components/Kutu";
 import { OlcutSerit, SayfaUstu } from "@/components/SayfaUstu";
+import { RehberlikKarnesi } from "@/components/ogrenci/RehberlikKarnesi";
 import { YazdirButonu } from "@/components/YazdirButonu";
 import { VeliKarneButonu } from "@/components/veli/VeliKarneButonu";
 import {
@@ -97,7 +98,7 @@ export default async function OgrenciDetaySayfasi({
     return satir;
   });
 
-  const eslesenKazanimlar = kazanimlariEslestir(kazanimSatirlari, sonuclar.length);
+  const eslesenKazanimlar = kazanimlariEslestir(kazanimSatirlari, sonuclar.length, sonSonuc.id);
   const surekliYanlislar = eslesenKazanimlar.filter((kazanim) => kazanim.herDenemedeYanlis);
   const yanlisKazanimlar = eslesenKazanimlar.filter((kazanim) => kazanim.yanlis > 0);
   const dersKazanimlari = kazanimlariDerslereAyir(yanlisKazanimlar);
@@ -117,8 +118,24 @@ export default async function OgrenciDetaySayfasi({
   }));
   const konuDilimleri = konuDurumuDilimleri(eslesenKazanimlar);
 
+  const denemeOzetleri = sonuclar.map((sonuc) => ({
+    id: sonuc.id,
+    ad: sonuc.exam.ad,
+    tarih: sonuc.exam.tarih,
+    toplamNet: sonuc.toplamNet,
+    puan: sonuc.puan,
+    toplamDogru: sonuc.toplamDogru,
+    toplamYanlis: sonuc.toplamYanlis,
+    toplamBos: sonuc.toplamBos,
+    grupNetleri: Object.fromEntries(
+      sonuc.dersler.filter((ders) => ders.isGrup).map((ders) => [ders.dersGrubu, ders.net]),
+    ),
+  }));
+  const sonDersler = tekDenemeDersleri(sonSonuc.dersler);
+
   return (
     <div className="space-y-4">
+      <div className="yazdirma-gizle space-y-4">
       {baslik}
       <DurumMesaji durum={durum} tasinan={tasinan} />
 
@@ -344,6 +361,18 @@ export default async function OgrenciDetaySayfasi({
           />
         </div>
       </Kart>
+      </div>
+
+      <RehberlikKarnesi
+        kurumAd={kurum.ad}
+        ogrenci={ogrenci}
+        denemeler={denemeOzetleri}
+        sonDeneme={denemeOzetleri[denemeOzetleri.length - 1]}
+        ortalamaNet={ortalamaNet}
+        dersToplamlari={dersToplamlari}
+        sonDersler={sonDersler}
+        kazanimlar={eslesenKazanimlar}
+      />
     </div>
   );
 }

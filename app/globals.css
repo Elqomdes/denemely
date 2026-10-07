@@ -227,9 +227,17 @@
   }
 }
 
+.ekran-disi {
+  display: none;
+}
+
 @media print {
   .yazdirma-gizle {
     display: none !important;
+  }
+
+  .ekran-disi {
+    display: block !important;
   }
 
   body {
@@ -242,5 +250,10 @@
     border-color: #b9b4aa !important;
     background: #fff !important;
     break-inside: avoid;
+  }
+
+  @page {
+    size: A4;
+    margin: 12mm;
   }
 }
