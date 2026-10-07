@@ -4,6 +4,7 @@ out/
 build/
 .env
 .env*.local
+.vercel
 *.db
 *.db-journal
 *.db-wal

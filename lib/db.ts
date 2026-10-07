@@ -1,5 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 
+if (!process.env.DENEMELY_DATABASE_URL && process.env.DATABASE_URL) {
+  process.env.DENEMELY_DATABASE_URL = process.env.DATABASE_URL;
+}
+
 // Gelistirme sirasinda hot reload her seferinde yeni baglanti acmasin.
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
