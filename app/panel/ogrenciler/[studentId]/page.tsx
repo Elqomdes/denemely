@@ -56,7 +56,7 @@ export default async function OgrenciDetaySayfasi({
       <Link href={`/panel/ogrenciler/${ogrenci.id}/duzenle`} className="btn btn-ikincil btn-kucuk">
         Kaydı düzenle
       </Link>
-      <YazdirButonu />
+      <YazdirButonu dosyaAdi={`${ogrenci.adSoyad} TYT karnesi`} />
     </SayfaUstu>
   );
 

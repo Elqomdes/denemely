@@ -241,8 +241,9 @@
   }
 
   body {
-    @apply bg-white;
+    @apply bg-white text-slate-800;
     font-size: 11pt;
+    background-image: none !important;
   }
 
   .panel,
@@ -252,8 +253,13 @@
     break-inside: avoid;
   }
 
+  .karne-renk {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
   @page {
     size: A4;
-    margin: 12mm;
+    margin: 10mm;
   }
 }

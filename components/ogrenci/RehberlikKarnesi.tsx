@@ -1,19 +1,10 @@
 import { Logo } from "@/components/Marka";
 import {
-  GRUP_SIRASI,
-  grupKisaAdi,
   kazanimGelisimDurumu,
   type EslesenKazanim,
 } from "@/lib/analiz";
 import { dersSiraNo } from "@/lib/ders/kanonik";
-import { kisaTarih, net, puan, tamSayi, tarih } from "@/lib/format";
-
-const DURUM_YAZISI = {
-  hala: "Hâlâ yanlış",
-  duzeldi: "Düzeldi",
-  yeni: "Son denemede yanlış",
-  olculmedi: "Son denemede yok",
-} as const;
+import { kisaTarih, net, tamSayi } from "@/lib/format";
 
 type DersToplam = {
   dersAdi: string;
@@ -43,6 +34,85 @@ type DenemeOzet = {
   grupNetleri: Partial<Record<string, number | null>>;
 };
 
+function konulariDerslereAyir(satirlar: EslesenKazanim[]) {
+  const harita = new Map<string, EslesenKazanim[]>();
+  for (const satir of satirlar) {
+    const liste = harita.get(satir.dersAdi) ?? [];
+    liste.push(satir);
+    harita.set(satir.dersAdi, liste);
+  }
+  return [...harita.entries()]
+    .map(([dersAdi, konular]) => ({
+      dersAdi,
+      konular: konular.sort((a, b) => a.kazanim.localeCompare(b.kazanim, "tr")),
+    }))
+    .sort((a, b) => dersSiraNo(a.dersAdi) - dersSiraNo(b.dersAdi));
+}
+
+function KonuListesi({
+  baslik,
+  renk,
+  satirlar,
+  bosYazi,
+}: {
+  baslik: string;
+  renk: "rose" | "amber" | "emerald";
+  satirlar: EslesenKazanim[];
+  bosYazi: string;
+}) {
+  const kutu = {
+    rose: "border-rose-200 bg-rose-50",
+    amber: "border-amber-200 bg-amber-50",
+    emerald: "border-emerald-200 bg-emerald-50",
+  }[renk];
+  const baslikRenk = {
+    rose: "text-rose-800",
+    amber: "text-amber-900",
+    emerald: "text-emerald-800",
+  }[renk];
+  const nokta = {
+    rose: "bg-rose-500",
+    amber: "bg-amber-500",
+    emerald: "bg-emerald-500",
+  }[renk];
+
+  return (
+    <section className={`karne-renk break-inside-avoid rounded-lg border ${kutu} p-3`}>
+      <h2 className={`text-[13px] font-semibold ${baslikRenk}`}>
+        {baslik}
+        <span className="ml-1.5 font-medium text-slate-500">{tamSayi(satirlar.length)}</span>
+      </h2>
+      {satirlar.length === 0 ? (
+        <p className="mt-2 text-[12.5px] text-slate-600">{bosYazi}</p>
+      ) : (
+        <div className="mt-2 space-y-2">
+          {konulariDerslereAyir(satirlar).map((grup) => (
+            <div key={grup.dersAdi}>
+              <p className="text-[11.5px] font-semibold text-slate-700">{grup.dersAdi}</p>
+              <ul className="mt-0.5 space-y-0.5">
+                {grup.konular.map((konu) => (
+                  <li
+                    key={`${konu.dersGrubu}-${konu.kazanim}`}
+                    className="flex items-start gap-1.5 text-[12.5px] text-slate-800"
+                  >
+                    <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${nokta}`} />
+                    <span>
+                      {konu.kazanim}
+                      <span className="ml-1 text-[11px] text-slate-500">
+                        {tamSayi(konu.yanlisDeneme)}/{tamSayi(konu.denemeSayisi)} deneme
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function RehberlikKarnesi({
   kurumAd,
   ogrenci,
@@ -62,213 +132,151 @@ export function RehberlikKarnesi({
   sonDersler: SonDers[];
   kazanimlar: EslesenKazanim[];
 }) {
-  const karsilastirma = kazanimlar
-    .map((kazanim) => ({ kazanim, durum: kazanimGelisimDurumu(kazanim) }))
-    .filter(
-      (satir): satir is { kazanim: EslesenKazanim; durum: keyof typeof DURUM_YAZISI } =>
-        Boolean(satir.durum),
-    )
-    .sort((a, b) => {
-      const sira = { hala: 0, yeni: 1, duzeldi: 2, olculmedi: 3 };
-      return (
-        sira[a.durum] - sira[b.durum] ||
-        dersSiraNo(a.kazanim.dersAdi) - dersSiraNo(b.kazanim.dersAdi) ||
-        a.kazanim.kazanim.localeCompare(b.kazanim.kazanim, "tr")
-      );
-    });
-
-  const hala = karsilastirma.filter((satir) => satir.durum === "hala");
-  const duzeldi = karsilastirma.filter((satir) => satir.durum === "duzeldi");
-  const yeni = karsilastirma.filter((satir) => satir.durum === "yeni");
+  const karsilastirma = kazanimlar.map((kazanim) => ({
+    kazanim,
+    durum: kazanimGelisimDurumu(kazanim),
+  }));
+  const hala = karsilastirma.filter((s) => s.durum === "hala").map((s) => s.kazanim);
+  const duzeldi = karsilastirma.filter((s) => s.durum === "duzeldi").map((s) => s.kazanim);
+  const yeni = karsilastirma.filter((s) => s.durum === "yeni").map((s) => s.kazanim);
+  const calis = [...hala, ...yeni];
   const sonOrtFark = sonDeneme.toplamNet - ortalamaNet;
 
-  const dersSatirlari = dersToplamlari.map((ders) => {
-    const son = sonDersler.find((aday) => aday.dersAdi === ders.dersAdi);
-    return { ...ders, son };
-  });
+  const dersSatirlari = dersToplamlari
+    .map((ders) => {
+      const son = sonDersler.find((aday) => aday.dersAdi === ders.dersAdi);
+      return { ...ders, son, fark: son ? son.net - ders.net : null };
+    })
+    .sort((a, b) => dersSiraNo(a.dersAdi) - dersSiraNo(b.dersAdi));
+
+  const kimlik = [
+    ogrenci.sinif,
+    ogrenci.ogrenciNo && ogrenci.ogrenciNo !== "0" ? `No ${ogrenci.ogrenciNo}` : null,
+    `${tamSayi(denemeler.length)} deneme`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <article className="ekran-disi text-slate-800">
-      <header className="flex items-start justify-between gap-4 border-b-2 border-slate-900 pb-3">
+      <header className="flex items-center justify-between gap-4 rounded-lg bg-slate-900 px-4 py-3 text-white">
         <div>
-          <Logo boyut="sm" />
-          <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">
-            TYT rehberlik karnesi
-          </p>
+          <Logo boyut="sm" ton="acik" />
+          <p className="mt-1 text-[12px] text-slate-300">TYT karnesi</p>
         </div>
-        <div className="text-right text-[12px] text-slate-600">
-          <p className="font-semibold text-slate-900">{kurumAd}</p>
-          <p>{tarih(new Date())}</p>
+        <div className="text-right text-[12px] text-slate-300">
+          <p className="font-medium text-white">{kurumAd}</p>
+          <p>{kisaTarih(new Date())}</p>
         </div>
       </header>
 
-      <section className="mt-4 grid grid-cols-2 gap-x-8 gap-y-1 text-[13px]">
-        <p>
-          <span className="text-slate-500">Öğrenci</span>
-          <span className="ml-2 font-semibold text-slate-950">{ogrenci.adSoyad}</span>
-        </p>
-        <p>
-          <span className="text-slate-500">Sınıf</span>
-          <span className="ml-2 font-medium text-slate-900">{ogrenci.sinif || "—"}</span>
-        </p>
-        <p>
-          <span className="text-slate-500">Numara</span>
-          <span className="ml-2 font-medium text-slate-900">
-            {ogrenci.ogrenciNo && ogrenci.ogrenciNo !== "0" ? ogrenci.ogrenciNo : "—"}
-          </span>
-        </p>
-        <p>
-          <span className="text-slate-500">Deneme</span>
-          <span className="ml-2 font-medium text-slate-900">{tamSayi(denemeler.length)}</span>
+      <section className="mt-4">
+        <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-slate-950">{ogrenci.adSoyad}</h1>
+        <p className="mt-1 text-[13px] text-slate-600">{kimlik}</p>
+        <p className="mt-0.5 text-[13px] text-slate-600">
+          Son deneme: {sonDeneme.ad} · {kisaTarih(sonDeneme.tarih)}
         </p>
       </section>
 
-      <p className="mt-4 text-[13px] leading-6 text-slate-700">
-        {ogrenci.adSoyad} {tamSayi(denemeler.length)} TYT denemesine girdi. Son deneme{" "}
-        <span className="font-medium">{sonDeneme.ad}</span> ({kisaTarih(sonDeneme.tarih)}) neti{" "}
-        {net(sonDeneme.toplamNet)}, tüm denemelerin ortalaması {net(ortalamaNet)}.
-        {sonOrtFark >= 0
-          ? ` Son net ortalamanın ${net(sonOrtFark)} üzerinde.`
-          : ` Son net ortalamanın ${net(Math.abs(sonOrtFark))} altında.`}{" "}
-        {tamSayi(hala.length)} kazanım hem önceki denemelerde hem son denemede yanlış.
-        {duzeldi.length > 0
-          ? ` ${tamSayi(duzeldi.length)} kazanımda düzelme var.`
-          : ""}
-        {yeni.length > 0
-          ? ` Son denemede ${tamSayi(yeni.length)} kazanım ilk kez tam yanlış.`
-          : ""}
-      </p>
-
-      <dl className="mt-4 grid grid-cols-3 border border-slate-300 text-center">
-        <div className="border-r border-slate-300 px-3 py-2">
-          <dt className="text-[11px] text-slate-500">Hâlâ yanlış</dt>
-          <dd className="mt-0.5 text-[20px] font-semibold text-rose-800">{tamSayi(hala.length)}</dd>
+      <dl className="mt-4 grid grid-cols-4 gap-2">
+        <div className="karne-renk rounded-lg border border-slate-200 px-3 py-2.5">
+          <dt className="text-[11px] text-slate-500">Son net</dt>
+          <dd className="mt-1 text-[22px] font-semibold tracking-tight text-slate-950">{net(sonDeneme.toplamNet)}</dd>
+          <p className={`text-[11.5px] ${sonOrtFark >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+            {sonOrtFark >= 0 ? "Ortalamanın üstünde" : "Ortalamanın altında"} {net(Math.abs(sonOrtFark))}
+          </p>
         </div>
-        <div className="border-r border-slate-300 px-3 py-2">
-          <dt className="text-[11px] text-slate-500">Düzelen</dt>
-          <dd className="mt-0.5 text-[20px] font-semibold text-emerald-800">{tamSayi(duzeldi.length)}</dd>
+        <div className="karne-renk rounded-lg border border-slate-200 px-3 py-2.5">
+          <dt className="text-[11px] text-slate-500">Ortalama net</dt>
+          <dd className="mt-1 text-[22px] font-semibold tracking-tight text-slate-950">{net(ortalamaNet)}</dd>
+          <p className="text-[11.5px] text-slate-500">Tüm denemeler</p>
         </div>
-        <div className="px-3 py-2">
-          <dt className="text-[11px] text-slate-500">Son denemede yeni</dt>
-          <dd className="mt-0.5 text-[20px] font-semibold text-slate-900">{tamSayi(yeni.length)}</dd>
+        <div className="karne-renk rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5">
+          <dt className="text-[11px] text-rose-700">Çalışılacak</dt>
+          <dd className="mt-1 text-[22px] font-semibold tracking-tight text-rose-800">{tamSayi(calis.length)}</dd>
+          <p className="text-[11.5px] text-rose-700/80">Konu</p>
+        </div>
+        <div className="karne-renk rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+          <dt className="text-[11px] text-emerald-700">Düzeldi</dt>
+          <dd className="mt-1 text-[22px] font-semibold tracking-tight text-emerald-800">{tamSayi(duzeldi.length)}</dd>
+          <p className="text-[11.5px] text-emerald-700/80">Konu</p>
         </div>
       </dl>
 
-      <section className="mt-5">
-        <h2 className="text-[13px] font-semibold text-slate-950">Deneme özeti</h2>
+      <section className="mt-4 break-inside-avoid">
+        <h2 className="text-[13px] font-semibold text-slate-950">Dersler</h2>
+        <p className="text-[12px] text-slate-500">Soldaki ortalama, sağdaki son deneme.</p>
+        <ul className="mt-2 space-y-1.5">
+          {dersSatirlari.map((ders) => {
+            const sonNet = ders.son?.net;
+            const yukseldi = ders.fark !== null && ders.fark >= 0;
+            return (
+              <li key={ders.dersAdi} className="grid grid-cols-[7rem_1fr_auto] items-center gap-3 text-[12.5px]">
+                <span className="font-medium text-slate-900">{ders.dersAdi}</span>
+                <span className="flex items-center gap-2 text-slate-600">
+                  <span className="w-10 text-right tabular">{net(ders.net)}</span>
+                  <span className="text-slate-300">→</span>
+                  <span className="w-10 tabular font-semibold text-slate-950">
+                    {sonNet === undefined ? "—" : net(sonNet)}
+                  </span>
+                </span>
+                <span
+                  className={`w-14 text-right tabular ${
+                    ders.fark === null ? "text-slate-400" : yukseldi ? "text-emerald-700" : "text-rose-700"
+                  }`}
+                >
+                  {ders.fark === null ? "" : `${yukseldi ? "+" : "−"}${net(Math.abs(ders.fark))}`}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <KonuListesi
+          baslik="Çalışman gerekenler"
+          renk="rose"
+          satirlar={hala}
+          bosYazi="Önceki denemelerden kalan açık konu yok."
+        />
+        <KonuListesi
+          baslik="Bu denemede yeni eksi"
+          renk="amber"
+          satirlar={yeni}
+          bosYazi="Bu denemede yeni tam yanlış konu yok."
+        />
+      </div>
+
+      <div className="mt-3">
+        <KonuListesi
+          baslik="Düzelenler"
+          renk="emerald"
+          satirlar={duzeldi}
+          bosYazi="Henüz düzelen konu yok."
+        />
+      </div>
+
+      <section className="mt-4 break-inside-avoid">
+        <h2 className="text-[13px] font-semibold text-slate-950">Denemeler</h2>
         <table className="mt-1 w-full border-collapse text-[12px]">
           <thead>
-            <tr className="border-b border-slate-300 text-left text-[10.5px] font-semibold uppercase tracking-wide text-slate-500">
-              <th className="py-1.5">Deneme</th>
-              <th className="py-1.5">Tarih</th>
-              {GRUP_SIRASI.map((grup) => (
-                <th key={grup} className="py-1.5 text-right">
-                  {grupKisaAdi(grup)}
-                </th>
-              ))}
-              <th className="py-1.5 text-right">Net</th>
-              <th className="py-1.5 text-right">Puan</th>
+            <tr className="border-b border-slate-200 text-left text-slate-500">
+              <th className="py-1.5 font-medium">Deneme</th>
+              <th className="py-1.5 font-medium">Tarih</th>
+              <th className="py-1.5 text-right font-medium">Net</th>
             </tr>
           </thead>
           <tbody>
             {[...denemeler].reverse().map((deneme) => (
-              <tr key={deneme.id} className="border-b border-slate-200">
+              <tr key={deneme.id} className="border-b border-slate-100">
                 <td className="py-1.5 font-medium text-slate-900">{deneme.ad}</td>
                 <td className="py-1.5 text-slate-600">{kisaTarih(deneme.tarih)}</td>
-                {GRUP_SIRASI.map((grup) => (
-                  <td key={grup} className="py-1.5 text-right text-slate-600">
-                    {net(deneme.grupNetleri?.[grup] ?? null)}
-                  </td>
-                ))}
-                <td className="py-1.5 text-right font-semibold">{net(deneme.toplamNet)}</td>
-                <td className="py-1.5 text-right text-slate-600">{puan(deneme.puan)}</td>
+                <td className="py-1.5 text-right font-semibold tabular">{net(deneme.toplamNet)}</td>
               </tr>
             ))}
           </tbody>
         </table>
-      </section>
-
-      <section className="mt-5">
-        <h2 className="text-[13px] font-semibold text-slate-950">Ders netleri</h2>
-        <p className="text-[11.5px] text-slate-500">Son deneme, tüm denemelerin ortalamasıyla yan yana.</p>
-        <table className="mt-1 w-full border-collapse text-[12px]">
-          <thead>
-            <tr className="border-b border-slate-300 text-left text-[10.5px] font-semibold uppercase tracking-wide text-slate-500">
-              <th className="py-1.5">Ders</th>
-              <th className="py-1.5 text-right">Ort. net</th>
-              <th className="py-1.5 text-right">Son net</th>
-              <th className="py-1.5 text-right">Son D / Y / B</th>
-            </tr>
-          </thead>
-          <tbody>
-            {dersSatirlari.map((ders) => (
-              <tr key={ders.dersAdi} className="border-b border-slate-200">
-                <td className="py-1.5 font-medium text-slate-900">
-                  {ders.dersAdi}
-                  <span className="ml-1.5 font-normal text-slate-400">{grupKisaAdi(ders.dersGrubu)}</span>
-                </td>
-                <td className="py-1.5 text-right">{net(ders.net)}</td>
-                <td className="py-1.5 text-right font-semibold">{ders.son ? net(ders.son.net) : "—"}</td>
-                <td className="py-1.5 text-right text-slate-600">
-                  {ders.son
-                    ? `${tamSayi(ders.son.dogru)} / ${tamSayi(ders.son.yanlis)} / ${tamSayi(ders.son.bos)}`
-                    : "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      <section className="mt-5">
-        <h2 className="text-[13px] font-semibold text-slate-950">Kazanım karşılaştırması</h2>
-        <p className="text-[11.5px] text-slate-500">
-          Geçmiş yanlışlar ile son denemedeki yanlışlar. Hâlâ yanlış olanlar görüşmenin önceliğidir.
-        </p>
-        {karsilastirma.length === 0 ? (
-          <p className="mt-2 text-[12.5px] text-slate-600">Karşılaştırılacak yanlış kazanım yok.</p>
-        ) : (
-          <table className="mt-1 w-full border-collapse text-[12px]">
-            <thead>
-              <tr className="border-b border-slate-300 text-left text-[10.5px] font-semibold uppercase tracking-wide text-slate-500">
-                <th className="py-1.5">Ders</th>
-                <th className="py-1.5">Kazanım</th>
-                <th className="py-1.5 text-right">Geçmiş</th>
-                <th className="py-1.5">Son deneme</th>
-                <th className="py-1.5">Durum</th>
-              </tr>
-            </thead>
-            <tbody>
-              {karsilastirma.map(({ kazanim, durum }) => (
-                <tr
-                  key={`${kazanim.dersGrubu}-${kazanim.dersAdi}-${kazanim.kazanim}`}
-                  className="border-b border-slate-200"
-                >
-                  <td className="py-1.5 align-top font-medium text-slate-900">{kazanim.dersAdi}</td>
-                  <td className="py-1.5 align-top text-slate-800">{kazanim.kazanim}</td>
-                  <td className="py-1.5 align-top text-right text-slate-600">
-                    {tamSayi(kazanim.yanlisDeneme)}/{tamSayi(kazanim.denemeSayisi)}
-                  </td>
-                  <td className="py-1.5 align-top text-slate-700">
-                    {kazanim.sonDenemedeVar
-                      ? kazanim.sonDenemedeYanlis
-                        ? "Yanlış"
-                        : "Doğru / kısmen"
-                      : "Yok"}
-                  </td>
-                  <td className="py-1.5 align-top font-medium text-slate-900">{DURUM_YAZISI[durum]}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
-
-      <section className="mt-6 border-t border-slate-300 pt-3">
-        <h2 className="text-[13px] font-semibold text-slate-950">Rehber öğretmen notu</h2>
-        <p className="mt-3 border-b border-slate-300 leading-[2.2]">&nbsp;</p>
-        <p className="border-b border-slate-300 leading-[2.2]">&nbsp;</p>
-        <p className="border-b border-slate-300 leading-[2.2]">&nbsp;</p>
       </section>
     </article>
   );
