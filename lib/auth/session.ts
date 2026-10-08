@@ -9,21 +9,26 @@ import {
 
 export { OTURUM_COOKIE, oturumTokeniDogrula, oturumTokeniUret, type Oturum };
 
+function cerezAyarlari(maxAge: number) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    // Vercel HTTPS; yerel next start HTTP kalir.
+    secure: process.env.DENEMELY_HTTPS === "1" || process.env.VERCEL === "1",
+    path: "/",
+    maxAge,
+  };
+}
+
 export async function oturumuBaslat(oturum: Oturum): Promise<void> {
   const token = await oturumTokeniUret(oturum);
   const cookieStore = await cookies();
-  cookieStore.set(OTURUM_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.DENEMELY_HTTPS === "1",
-    path: "/",
-    maxAge: OTURUM_SURESI_SANIYE,
-  });
+  cookieStore.set(OTURUM_COOKIE, token, cerezAyarlari(OTURUM_SURESI_SANIYE));
 }
 
 export async function oturumuKapat(): Promise<void> {
   const cookieStore = await cookies();
-  cookieStore.delete(OTURUM_COOKIE);
+  cookieStore.set(OTURUM_COOKIE, "", cerezAyarlari(0));
 }
 
 export async function oturumuOku(): Promise<Oturum | null> {

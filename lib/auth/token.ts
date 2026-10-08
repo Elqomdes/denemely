@@ -39,7 +39,7 @@ export async function oturumTokeniUret(oturum: Oturum): Promise<string> {
 
 export async function oturumTokeniDogrula(token: string): Promise<Oturum | null> {
   try {
-    const { payload } = await jwtVerify(token, gizliAnahtar());
+    const { payload } = await jwtVerify(token, gizliAnahtar(), { clockTolerance: 60 });
     const rol = payload.rol;
     if (rol !== ROLLER.SUPERADMIN && rol !== ROLLER.KURUM_YETKILISI) return null;
 

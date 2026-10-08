@@ -20,7 +20,10 @@ export function GirisFormu({ kurumSlug }: { kurumSlug?: string }) {
           type="text"
           autoComplete="username"
           autoCapitalize="none"
+          autoCorrect="off"
           spellCheck={false}
+          inputMode="email"
+          lang="en"
           required
           className="alan"
         />

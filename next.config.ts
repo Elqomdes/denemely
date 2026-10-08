@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
     serverActions: {
       // Bir denemede 30+ ogrencinin PDF'i yuklenebiliyor.
       bodySizeLimit: "25mb",
+      allowedOrigins: ["denemely.vercel.app", "*.vercel.app"],
     },
   },
 };

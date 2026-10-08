@@ -6,6 +6,7 @@ import { sifreHashle } from "@/lib/auth/sifre";
 import { superadminGerekli } from "@/lib/auth/guards";
 import { ROLLER } from "@/lib/auth/roller";
 import { prisma } from "@/lib/db";
+import { kullaniciAdiniNormallestir } from "@/lib/auth/kullaniciAdi";
 import { slugOlustur } from "@/lib/format";
 
 export interface FormDurumu {
@@ -145,10 +146,8 @@ export async function kullaniciOlustur(
 
   const institutionId = String(formData.get("institutionId") ?? "");
   const adSoyad = String(formData.get("adSoyad") ?? "").trim();
-  const kullaniciAdi = String(formData.get("kullaniciAdi") ?? "")
-    .trim()
-    .toLocaleLowerCase("tr");
-  const sifre = String(formData.get("sifre") ?? "");
+  const kullaniciAdi = kullaniciAdiniNormallestir(String(formData.get("kullaniciAdi") ?? ""));
+  const sifre = String(formData.get("sifre") ?? "").trim();
 
   if (adSoyad.length < 3) return { hata: "Ad soyad en az 3 karakter olmalı." };
   if (!KULLANICI_ADI_DESENI.test(kullaniciAdi)) {
@@ -193,9 +192,7 @@ export async function kullaniciGuncelle(
 
   const userId = String(formData.get("userId") ?? "");
   const adSoyad = String(formData.get("adSoyad") ?? "").trim();
-  const kullaniciAdi = String(formData.get("kullaniciAdi") ?? "")
-    .trim()
-    .toLocaleLowerCase("tr");
+  const kullaniciAdi = kullaniciAdiniNormallestir(String(formData.get("kullaniciAdi") ?? ""));
 
   if (adSoyad.length < 3) return { hata: "Ad soyad en az 3 karakter olmalı." };
   if (!KULLANICI_ADI_DESENI.test(kullaniciAdi)) {
@@ -237,7 +234,7 @@ export async function sifreSifirla(
   await superadminGerekli();
 
   const userId = String(formData.get("userId") ?? "");
-  const sifre = String(formData.get("sifre") ?? "");
+  const sifre = String(formData.get("sifre") ?? "").trim();
 
   if (sifre.length < EN_KISA_SIFRE) {
     return { hata: `Şifre en az ${EN_KISA_SIFRE} karakter olmalı.` };
