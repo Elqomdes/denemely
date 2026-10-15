@@ -5,7 +5,9 @@ import { HizliLink } from "@/components/HizliLink";
 import { YukleIkonu } from "@/components/Ikonlar";
 import { BosDurum, Kart } from "@/components/Kutu";
 import { OlcutSerit, SayfaUstu } from "@/components/SayfaUstu";
+import { SilButonu } from "@/components/SilButonu";
 import { SinavTuruSecici } from "@/components/SinavTuruSecici";
+import { denemeSil } from "@/app/panel/denemeler/actions";
 import { grupKisaAdi, kurumOzeti } from "@/lib/analiz";
 import { kurumOturumuGerekli } from "@/lib/auth/guards";
 import { basariArkaPlani, kisaTarih, net, puan, tamSayi, yuzde } from "@/lib/format";
@@ -17,10 +19,10 @@ export const metadata = { title: "Genel Bakış" };
 export default async function PanelAnaSayfa({
   searchParams,
 }: {
-  searchParams: Promise<{ sinav?: string }>;
+  searchParams: Promise<{ sinav?: string; durum?: string }>;
 }) {
   const { kurum } = await kurumOturumuGerekli();
-  const { sinav } = await searchParams;
+  const { sinav, durum } = await searchParams;
   const sinavTuru = parseSinavTuru(sinav);
   const [ozet, adaylar] = await Promise.all([
     kurumOzeti(kurum.id, sinavTuru),
@@ -37,6 +39,11 @@ export default async function PanelAnaSayfa({
             Deneme yükle
           </Link>
         </SayfaUstu>
+        {durum === "silindi" ? (
+          <p className="uyari-serit mt-4 border-emerald-200 bg-emerald-50 text-emerald-800">
+            Deneme ve bağlı sonuçları silindi.
+          </p>
+        ) : null}
         <BosDurum
           baslik={`Henüz ${sinavTuru} denemesi yok`}
           aciklama={`${sinavTuru} sonuç belgesini yüklediğinizde analizler burada oluşur.`}
@@ -64,6 +71,12 @@ export default async function PanelAnaSayfa({
           Deneme yükle
         </Link>
       </SayfaUstu>
+
+      {durum === "silindi" ? (
+        <p className="uyari-serit border-emerald-200 bg-emerald-50 text-emerald-800">
+          Deneme ve bağlı sonuçları silindi.
+        </p>
+      ) : null}
 
       {adaylar.length > 0 ? (
         <div className="uyari-serit flex flex-wrap items-center justify-between gap-2 border-amber-200 bg-amber-50 text-amber-900">
@@ -105,6 +118,7 @@ export default async function PanelAnaSayfa({
                   <th className="sayi">Katılım</th>
                   <th className="sayi">Ort. net</th>
                   <th className="sayi">Ort. puan</th>
+                  <th className="yazdirma-gizle"></th>
                 </tr>
               </thead>
               <tbody>
@@ -119,6 +133,16 @@ export default async function PanelAnaSayfa({
                     <td className="sayi text-slate-600">{tamSayi(deneme.katilim)}</td>
                     <td className="sayi font-semibold text-slate-900">{net(deneme.ortalamaNet)}</td>
                     <td className="sayi text-slate-600">{puan(deneme.ortalamaPuan)}</td>
+                    <td className="yazdirma-gizle">
+                      <SilButonu
+                        action={denemeSil}
+                        gizliAlanAdi="examId"
+                        gizliDeger={deneme.examId}
+                        onayMesaji={`"${deneme.ad}" denemesi ve ${tamSayi(deneme.katilim)} öğrenci sonucu silinecek. Öğrenci kayıtları durur. Onaylıyor musunuz?`}
+                        yazi="Sil"
+                        ekAlanlar={{ geri: "/panel" }}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>

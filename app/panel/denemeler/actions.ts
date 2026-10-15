@@ -13,6 +13,7 @@ import { parseSinavTuru } from "@/lib/sinav";
 export async function denemeSil(formData: FormData): Promise<void> {
   const { kurum } = await kurumOturumuGerekli();
   const examId = String(formData.get("examId") ?? "");
+  const geriHam = String(formData.get("geri") ?? "");
 
   const deneme = await prisma.exam.findFirst({
     where: { id: examId, institutionId: kurum.id },
@@ -25,5 +26,8 @@ export async function denemeSil(formData: FormData): Promise<void> {
   revalidatePath("/panel");
   revalidatePath("/panel/denemeler");
   revalidatePath("/panel/ogrenciler");
-  redirect(`/panel/denemeler?durum=silindi&sinav=${parseSinavTuru(deneme.sinavTuru)}`);
+
+  const sinav = parseSinavTuru(deneme.sinavTuru);
+  const geri = geriHam === "/panel" ? "/panel" : "/panel/denemeler";
+  redirect(`${geri}?durum=silindi&sinav=${sinav}`);
 }

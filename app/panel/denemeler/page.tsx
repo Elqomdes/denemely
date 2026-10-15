@@ -2,12 +2,14 @@ import Link from "next/link";
 import { HizliLink } from "@/components/HizliLink";
 import { BosDurum, Etiket, Kart } from "@/components/Kutu";
 import { SayfaUstu } from "@/components/SayfaUstu";
+import { SilButonu } from "@/components/SilButonu";
 import { SinavTuruSecici } from "@/components/SinavTuruSecici";
 import { denemeListesi } from "@/lib/analiz";
 import { kurumOturumuGerekli } from "@/lib/auth/guards";
 import { kisaTarih, net, puan, tamSayi } from "@/lib/format";
 import { formatEtiketi } from "@/lib/pdf/types";
 import { parseSinavTuru } from "@/lib/sinav";
+import { denemeSil } from "./actions";
 
 export const metadata = { title: "Denemeler" };
 
@@ -56,6 +58,7 @@ export default async function DenemelerSayfasi({
                   <th className="sayi">Ort. net</th>
                   <th className="sayi">En yüksek</th>
                   <th className="sayi">Ort. puan</th>
+                  <th className="yazdirma-gizle"></th>
                 </tr>
               </thead>
               <tbody>
@@ -77,6 +80,15 @@ export default async function DenemelerSayfasi({
                     <td className="sayi font-semibold text-slate-900">{net(deneme.ortalamaNet)}</td>
                     <td className="sayi text-slate-600">{net(deneme.enYuksekNet)}</td>
                     <td className="sayi text-slate-600">{puan(deneme.ortalamaPuan)}</td>
+                    <td className="yazdirma-gizle">
+                      <SilButonu
+                        action={denemeSil}
+                        gizliAlanAdi="examId"
+                        gizliDeger={deneme.id}
+                        onayMesaji={`"${deneme.ad}" denemesi ve ${tamSayi(deneme.katilim)} öğrenci sonucu silinecek. Öğrenci kayıtları durur. Onaylıyor musunuz?`}
+                        yazi="Sil"
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>

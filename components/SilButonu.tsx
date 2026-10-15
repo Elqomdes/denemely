@@ -6,12 +6,14 @@ export function SilButonu({
   gizliDeger,
   onayMesaji,
   yazi = "Sil",
+  ekAlanlar,
 }: {
   action: (formData: FormData) => Promise<void>;
   gizliAlanAdi: string;
   gizliDeger: string;
   onayMesaji: string;
   yazi?: string;
+  ekAlanlar?: Record<string, string>;
 }) {
   return (
     <form
@@ -21,6 +23,11 @@ export function SilButonu({
       }}
     >
       <input type="hidden" name={gizliAlanAdi} value={gizliDeger} />
+      {ekAlanlar
+        ? Object.entries(ekAlanlar).map(([ad, deger]) => (
+            <input key={ad} type="hidden" name={ad} value={deger} />
+          ))
+        : null}
       <button type="submit" className="btn btn-tehlike btn-kucuk">
         {yazi}
       </button>
