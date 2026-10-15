@@ -7,6 +7,7 @@ import { varsayilanDenemeAdi } from "@/lib/import/eslestir";
 import { denemeyiKaydet } from "@/lib/import/kaydet";
 import { asamaKaydet, asamaOku, asamaSil } from "@/lib/import/staging";
 import { DesteklenmeyenFormatHatasi } from "@/lib/pdf/detect";
+import { PdfOkumaHatasi } from "@/lib/pdf/extract";
 import { parseExamPdf, ProfilOgrenmeHatasi } from "@/lib/pdf/parseExamPdf";
 import { parseSinavTuru } from "@/lib/sinav";
 
@@ -23,20 +24,22 @@ export async function pdfYukle(
   const { oturum, kurum } = await kurumOturumuGerekli();
 
   const dosya = formData.get("dosya");
-  if (!(dosya instanceof File) || dosya.size === 0) {
+  if (!(dosya instanceof Blob) || dosya.size === 0) {
     return { hata: "Lütfen bir PDF dosyası seçin." };
   }
   if (dosya.size > MAKS_BOYUT) {
     return { hata: "Dosya 25 MB sınırını aşıyor. Denemeyi bölerek yükleyebilirsiniz." };
   }
-  if (!dosya.name.toLowerCase().endsWith(".pdf")) {
+  const dosyaAdi = "name" in dosya && typeof dosya.name === "string" ? dosya.name : "sonuc.pdf";
+  if (!dosyaAdi.toLowerCase().endsWith(".pdf")) {
     return { hata: "Yalnızca PDF dosyası yükleyebilirsiniz." };
   }
 
   let token: string;
   try {
-    const data = new Uint8Array(await dosya.arrayBuffer());
-    const parsed = await parseExamPdf(data, dosya.name);
+    const tampon = await dosya.arrayBuffer();
+    const data = new Uint8Array(tampon.slice(0));
+    const parsed = await parseExamPdf(data, dosyaAdi);
 
     if (parsed.ogrenciler.length === 0) {
       return {
@@ -47,23 +50,33 @@ export async function pdfYukle(
     token = await asamaKaydet({
       institutionId: kurum.id,
       yukleyenId: oturum.userId,
-      dosyaAdi: dosya.name,
+      dosyaAdi,
       parsed,
     });
   } catch (error) {
-    if (error instanceof ProfilOgrenmeHatasi) {
-      console.warn(`Sablon ogrenilemedi: ${dosya.name} (${error.message})`);
-      return { hata: error.message };
+    const ad = error instanceof Error ? error.name : "";
+    if (error instanceof ProfilOgrenmeHatasi || ad === "ProfilOgrenmeHatasi") {
+      const mesaj = error instanceof Error ? error.message : "Şablon öğrenilemedi.";
+      console.warn(`Sablon ogrenilemedi: ${dosyaAdi} (${mesaj})`);
+      return { hata: mesaj };
     }
-    if (error instanceof DesteklenmeyenFormatHatasi) {
-      console.warn(`Desteklenmeyen format yuklendi: ${dosya.name} (kurum: ${kurum.slug})`);
+    if (error instanceof DesteklenmeyenFormatHatasi || ad === "DesteklenmeyenFormatHatasi") {
+      console.warn(`Desteklenmeyen format yuklendi: ${dosyaAdi} (kurum: ${kurum.slug})`);
       return {
         hata:
           "Bu yayının sonuç belgesi formatı henüz desteklenmiyor. Dosyayı Hedefly ekibine iletirseniz kısa sürede ekleyebiliriz.",
       };
     }
+    if (error instanceof PdfOkumaHatasi || ad === "PdfOkumaHatasi") {
+      const mesaj = error instanceof Error ? error.message : "PDF okunamadı.";
+      console.warn(`PDF okunamadi: ${dosyaAdi}`);
+      return { hata: mesaj };
+    }
     console.error("PDF ayristirma hatasi:", error);
-    return { hata: "PDF okunurken bir sorun oluştu. Dosya bozuk olabilir." };
+    return {
+      hata:
+        "PDF okunurken bir sorun oluştu. Dosya büyükse birkaç dakika bekleyip tekrar deneyin; sürmezse Hedefly'a iletin.",
+    };
   }
 
   redirect(`/panel/denemeler/yukle/${token}`);

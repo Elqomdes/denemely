@@ -9,6 +9,15 @@ const nextConfig: NextConfig = {
   },
   // pdfjs-dist ve prisma sunucu tarafinda kendi dosyalarini okur, bundle edilmemeli.
   serverExternalPackages: ["pdfjs-dist", "@prisma/client"],
+  outputFileTracingIncludes: {
+    "/panel/denemeler/yukle": [
+      "./node_modules/pdfjs-dist/package.json",
+      "./node_modules/pdfjs-dist/legacy/**",
+      "./node_modules/pdfjs-dist/cmaps/**",
+      "./node_modules/pdfjs-dist/standard_fonts/**",
+      "./data/format-profiles/**",
+    ],
+  },
   experimental: {
     optimizePackageImports: ["recharts"],
     // Dinamik sayfalar varsayilan olarak her geciste yeniden istenir.

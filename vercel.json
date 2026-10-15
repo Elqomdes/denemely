@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "app/panel/denemeler/yukle/page.tsx": {
+      "maxDuration": 180
+    }
+  }
+}

@@ -2,6 +2,9 @@
   "name": "denemely",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "description": "Denemely - Hedefly Egitim Teknolojileri deneme sinavi analiz platformu",
   "scripts": {
     "dev": "next dev --turbopack",

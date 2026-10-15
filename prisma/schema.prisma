@@ -252,3 +252,11 @@ model VeliKarne {
   @@unique([studentId, examId])
   @@index([institutionId])
 }
+
+/// Ogrenilen PDF sablonlari. Vercel'de dosya sistemine yazilamaz; Postgres'te durur.
+model PdfFormatProfile {
+  id        String   @id
+  json      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

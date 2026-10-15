@@ -7,6 +7,10 @@
  * (sol/sag kolon) ayiriyoruz.
  */
 
+import { createRequire } from "node:module";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+
 export interface PdfToken {
   text: string;
   /** Sol kenar (PDF punto birimi) */
@@ -42,56 +46,128 @@ export interface PdfPage {
  */
 const LINE_TOLERANCE = 1.5;
 
-export async function extractPdfPages(data: Uint8Array): Promise<PdfPage[]> {
-  const pdfjs = await loadPdfjs();
+export class PdfOkumaHatasi extends Error {
+  constructor(
+    message: string,
+    public readonly kod: "bozuk" | "sifreli" | "okuyucu" | "bos",
+  ) {
+    super(message);
+    this.name = "PdfOkumaHatasi";
+  }
+}
 
-  const doc = await pdfjs.getDocument({
-    data,
-    useSystemFonts: false,
-    // Yalnizca metin katmani lazim; font dosyalarini yuklemeye calismasin.
-    disableFontFace: true,
-    // Standart font uyarilarini bastir (VerbosityLevel.ERRORS)
-    verbosity: 0,
-  }).promise;
+export async function extractPdfPages(data: Uint8Array): Promise<PdfPage[]> {
+  if (data.byteLength < 8) {
+    throw new PdfOkumaHatasi("Dosya boş veya yükleme yarım kaldı. PDF'i yeniden seçin.", "bos");
+  }
+
+  const bas = new TextDecoder("latin1").decode(data.subarray(0, 1024));
+  if (!bas.includes("%PDF")) {
+    throw new PdfOkumaHatasi(
+      "Bu dosya PDF görünmüyor. Sonuç belgesini PDF olarak kaydedip yeniden yükleyin.",
+      "bozuk",
+    );
+  }
+
+  const pdfjs = await loadPdfjs();
+  const kok = pdfjsKok();
+
+  // pdfjs TypedArray'i worker'a devreder; kopya olmazsa tampon boşalır ve
+  // sağlam dosya "bozuk PDF" diye reddedilir.
+  const kopya = new Uint8Array(data.byteLength);
+  kopya.set(data);
+
+  const klasorUrl = (alt: string) => pathToFileURL(path.join(kok, alt) + path.sep).href;
+
+  const ortam = globalThis as { Worker?: typeof Worker };
+  const oncekiWorker = ortam.Worker;
+  // Node 22'de Worker var; pdfjs tarayici sanip worker dosyasi arar ve dusar.
+  // Metin okumak icin sahte (ayni surec) worker yeterli.
+  ortam.Worker = undefined;
 
   try {
-    const pages: PdfPage[] = [];
-    for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber++) {
-      const page = await doc.getPage(pageNumber);
-      const viewport = page.getViewport({ scale: 1 });
-      const content = await page.getTextContent();
-
-      const tokens: PdfToken[] = [];
-      for (const item of content.items) {
-        if (!("str" in item)) continue;
-        const text = item.str;
-        if (text.length === 0) continue;
-        if (text.trim().length === 0) continue;
-
-        const x = item.transform[4] as number;
-        const baseline = item.transform[5] as number;
-        tokens.push({
-          text,
-          x,
-          endX: x + (item.width ?? 0),
-          top: viewport.height - baseline,
-        });
-      }
-
-      pages.push({
-        pageNumber,
-        width: viewport.width,
-        height: viewport.height,
-        tokens,
-        lines: groupIntoLines(tokens),
-      });
-
-      page.cleanup();
+    if (pdfjs.GlobalWorkerOptions) {
+      pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(
+        path.join(kok, "legacy", "build", "pdf.worker.mjs"),
+      ).href;
     }
-    return pages;
+
+    const doc = await pdfjs.getDocument({
+      data: kopya,
+      useSystemFonts: false,
+      disableFontFace: true,
+      verbosity: 0,
+      isEvalSupported: false,
+      useWasm: false,
+      isOffscreenCanvasSupported: false,
+      useWorkerFetch: false,
+      cMapUrl: klasorUrl("cmaps"),
+      cMapPacked: true,
+      standardFontDataUrl: klasorUrl("standard_fonts"),
+    } as Parameters<typeof pdfjs.getDocument>[0]).promise;
+
+    try {
+      const pages: PdfPage[] = [];
+      for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber++) {
+        const page = await doc.getPage(pageNumber);
+        const viewport = page.getViewport({ scale: 1 });
+        const content = await page.getTextContent();
+
+        const tokens: PdfToken[] = [];
+        for (const item of content.items) {
+          if (!("str" in item)) continue;
+          const text = item.str;
+          if (text.length === 0) continue;
+          if (text.trim().length === 0) continue;
+
+          const x = item.transform[4] as number;
+          const baseline = item.transform[5] as number;
+          tokens.push({
+            text,
+            x,
+            endX: x + (item.width ?? 0),
+            top: viewport.height - baseline,
+          });
+        }
+
+        pages.push({
+          pageNumber,
+          width: viewport.width,
+          height: viewport.height,
+          tokens,
+          lines: groupIntoLines(tokens),
+        });
+
+        page.cleanup();
+      }
+      return pages;
+    } finally {
+      await doc.destroy();
+    }
+  } catch (error) {
+    throw pdfHatasiDonustur(error);
   } finally {
-    await doc.destroy();
+    ortam.Worker = oncekiWorker;
   }
+}
+
+function pdfHatasiDonustur(error: unknown): PdfOkumaHatasi {
+  const mesaj = error instanceof Error ? error.message : String(error);
+  const ad = error instanceof Error ? error.name : "";
+  if (/password|encrypted/i.test(mesaj) || ad === "PasswordException") {
+    return new PdfOkumaHatasi("Bu PDF şifreli. Korumasız kopyasını yükleyin.", "sifreli");
+  }
+  if (/Invalid PDF|Missing PDF|bad xref|FormatError/i.test(mesaj) || ad === "InvalidPDFException") {
+    return new PdfOkumaHatasi(
+      "PDF açılamadı. Dosya bozulmuş veya tarayıcı yüklemeyi yarıda kesmiş olabilir. Yeniden kaydedip deneyin.",
+      "bozuk",
+    );
+  }
+  console.error("PDF okuyucu hatasi:", error);
+  return new PdfOkumaHatasi(
+    "PDF okuyucu bu sunucuda dosyayı işleyemedi. Biraz sonra tekrar deneyin.",
+    "okuyucu",
+  );
 }
 
 /** Verilen x bandindaki (kolon) tokenlari yeniden satirlara boler. */
@@ -153,7 +229,6 @@ let pdfjsPromise: Promise<PdfjsModule> | null = null;
 async function loadPdfjs(): Promise<PdfjsModule> {
   if (!pdfjsPromise) {
     pdfjsPromise = (async () => {
-      // Node tarafinda worker'siz calisan legacy derleme kullaniliyor.
       const mod = (await import(
         "pdfjs-dist/legacy/build/pdf.mjs"
       )) as unknown as PdfjsModule;
@@ -161,4 +236,13 @@ async function loadPdfjs(): Promise<PdfjsModule> {
     })();
   }
   return pdfjsPromise;
+}
+
+function pdfjsKok(): string {
+  try {
+    const req = createRequire(import.meta.url);
+    return path.dirname(req.resolve("pdfjs-dist/package.json"));
+  } catch {
+    return path.join(process.cwd(), "node_modules", "pdfjs-dist");
+  }
 }

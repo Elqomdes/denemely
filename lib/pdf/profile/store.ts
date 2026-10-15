@@ -1,5 +1,6 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { prisma } from "@/lib/db";
 import type { PdfPage } from "../extract";
 import { sayfaMetni } from "./dump";
 import { derleDesen } from "./helpers";
@@ -9,23 +10,60 @@ const KLASOR = path.join(process.cwd(), "data", "format-profiles");
 
 let onbellek: FormatProfile[] | null = null;
 
+function profilGecerliMi(ham: unknown): ham is FormatProfile {
+  if (!ham || typeof ham !== "object") return false;
+  const aday = ham as FormatProfile;
+  return Boolean(aday.id && aday.tespit?.zorunlu?.length);
+}
+
 export async function profilleriYukle(zorla = false): Promise<FormatProfile[]> {
   if (onbellek && !zorla) return onbellek;
+  const byId = new Map<string, FormatProfile>();
+
+  for (const profil of await dosyadanProfiller()) {
+    byId.set(profil.id, profil);
+  }
+  for (const profil of await veritabanindanProfiller()) {
+    byId.set(profil.id, profil);
+  }
+
+  onbellek = [...byId.values()];
+  return onbellek;
+}
+
+async function dosyadanProfiller(): Promise<FormatProfile[]> {
   try {
     const dosyalar = (await readdir(KLASOR)).filter((ad) => ad.endsWith(".json"));
     const profiller: FormatProfile[] = [];
     for (const dosya of dosyalar) {
       try {
-        const ham = JSON.parse(await readFile(path.join(KLASOR, dosya), "utf8")) as FormatProfile;
-        if (ham?.id && ham.tespit?.zorunlu?.length) profiller.push(ham);
+        const ham = JSON.parse(await readFile(path.join(KLASOR, dosya), "utf8")) as unknown;
+        if (profilGecerliMi(ham)) profiller.push(ham);
       } catch {
         // Bozuk profil dosyası yok sayılır.
       }
     }
-    onbellek = profiller;
     return profiller;
   } catch {
-    onbellek = [];
+    return [];
+  }
+}
+
+async function veritabanindanProfiller(): Promise<FormatProfile[]> {
+  try {
+    const kayitlar = await prisma.pdfFormatProfile.findMany();
+    const profiller: FormatProfile[] = [];
+    for (const kayit of kayitlar) {
+      try {
+        const ham = JSON.parse(kayit.json) as unknown;
+        if (profilGecerliMi(ham)) profiller.push({ ...ham, id: kayit.id });
+      } catch {
+        // Bozuk JSON yok sayılır.
+      }
+    }
+    return profiller;
+  } catch (error) {
+    console.warn("PDF sablonlari veritabanindan okunamadi:", error);
     return [];
   }
 }
@@ -54,7 +92,6 @@ export function profilEslese(profil: FormatProfile, metin: string): boolean {
 }
 
 export async function profilKaydet(profil: FormatProfile): Promise<FormatProfile> {
-  await mkdir(KLASOR, { recursive: true });
   const id = profil.id || slugUret(profil.ad || profil.yayin || "profil");
   const mevcut = await profilleriYukle(true);
   let benzersiz = id;
@@ -64,7 +101,24 @@ export async function profilKaydet(profil: FormatProfile): Promise<FormatProfile
     n += 1;
   }
   const kayit = { ...profil, id: benzersiz };
-  await writeFile(path.join(KLASOR, `${benzersiz}.json`), JSON.stringify(kayit, null, 2), "utf8");
+  const json = JSON.stringify(kayit);
+
+  try {
+    await prisma.pdfFormatProfile.upsert({
+      where: { id: benzersiz },
+      create: { id: benzersiz, json },
+      update: { json },
+    });
+  } catch (error) {
+    console.warn("PDF sablonu veritabanina yazilamadi, dosyaya denenecek:", error);
+    try {
+      await mkdir(KLASOR, { recursive: true });
+      await writeFile(path.join(KLASOR, `${benzersiz}.json`), JSON.stringify(kayit, null, 2), "utf8");
+    } catch (dosyaHatasi) {
+      console.error("PDF sablonu kaydedilemedi:", dosyaHatasi);
+    }
+  }
+
   onbellek = null;
   return kayit;
 }
@@ -77,4 +131,3 @@ export function slugUret(ad: string): string {
     .slice(0, 40);
   return slug || "profil";
 }
-
