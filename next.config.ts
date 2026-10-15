@@ -7,22 +7,10 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: import.meta.dirname,
   },
-  // pdfjs-dist ve prisma sunucu tarafinda kendi dosyalarini okur, bundle edilmemeli.
-  serverExternalPackages: ["pdfjs-dist", "@prisma/client"],
+  // prisma sunucu tarafinda kendi dosyalarini okur, bundle edilmemeli.
+  serverExternalPackages: ["@prisma/client"],
   outputFileTracingIncludes: {
-    "/*": [
-      "./node_modules/pdfjs-dist/package.json",
-      "./node_modules/pdfjs-dist/legacy/**",
-      "./node_modules/pdfjs-dist/cmaps/**",
-      "./node_modules/pdfjs-dist/standard_fonts/**",
-      "./data/format-profiles/**",
-    ],
-    "/panel/denemeler/yukle": [
-      "./node_modules/pdfjs-dist/package.json",
-      "./node_modules/pdfjs-dist/legacy/**",
-      "./node_modules/pdfjs-dist/cmaps/**",
-      "./node_modules/pdfjs-dist/standard_fonts/**",
-    ],
+    "/panel/denemeler/yukle": ["./data/format-profiles/**"],
   },
   experimental: {
     optimizePackageImports: ["recharts"],

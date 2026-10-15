@@ -7,33 +7,7 @@
  * (sol/sag kolon) ayiriyoruz.
  */
 
-import { existsSync } from "node:fs";
-import { createRequire } from "node:module";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
-
-const PDFJS_SURUM = "5.7.284";
-const PDFJS_CDN = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_SURUM}`;
-
-const PromiseApi = Promise as unknown as {
-  withResolvers?: <T>() => {
-    promise: Promise<T>;
-    resolve: (value: T | PromiseLike<T>) => void;
-    reject: (reason?: unknown) => void;
-  };
-};
-if (typeof PromiseApi.withResolvers !== "function") {
-  // pdfjs 5 Node 22 ister; Vercel bazen 20 calistirir.
-  PromiseApi.withResolvers = <T>() => {
-    let resolve!: (value: T | PromiseLike<T>) => void;
-    let reject!: (reason?: unknown) => void;
-    const promise = new Promise<T>((res, rej) => {
-      resolve = res;
-      reject = rej;
-    });
-    return { promise, resolve, reject };
-  };
-}
+import { getDocumentProxy } from "unpdf";
 
 export interface PdfToken {
   text: string;
@@ -70,6 +44,8 @@ export interface PdfPage {
  */
 const LINE_TOLERANCE = 1.5;
 
+const FONT_CDN = "https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.284";
+
 export class PdfOkumaHatasi extends Error {
   constructor(
     message: string,
@@ -93,100 +69,67 @@ export async function extractPdfPages(data: Uint8Array): Promise<PdfPage[]> {
     );
   }
 
-  const ortam = globalThis as { Worker?: typeof Worker };
-  const oncekiWorker = ortam.Worker;
-  // Node 22'de Worker var; pdfjs tarayici sanip worker dosyasi arar.
-  // Modul yuklenmeden kapatilir; aksi halde import asamasinda dusebilir.
-  ortam.Worker = undefined;
-
-  let pdfjs: PdfjsModule;
-  try {
-    pdfjs = await loadPdfjs();
-  } catch (error) {
-    ortam.Worker = oncekiWorker;
-    console.error("pdfjs yuklenemedi:", error);
-    throw new PdfOkumaHatasi(
-      "PDF okuyucu bu sunucuda açılamadı. Biraz sonra tekrar deneyin.",
-      "okuyucu",
-    );
-  }
-
-  const kok = pdfjsKok();
   const kopya = new Uint8Array(data.byteLength);
   kopya.set(data);
 
-  const klasorUrl = (alt: string) => {
-    const klasor = path.join(kok, alt);
-    if (!existsSync(klasor)) return `${PDFJS_CDN}/${alt}/`;
-    return pathToFileURL(klasor + path.sep).href;
-  };
-
+  let doc: Awaited<ReturnType<typeof getDocumentProxy>>;
   try {
-    if (pdfjs.GlobalWorkerOptions) {
-      pdfjs.GlobalWorkerOptions.workerSrc = "";
-    }
-
-    const doc = await pdfjs.getDocument({
-      data: kopya,
+    doc = await getDocumentProxy(kopya, {
       useSystemFonts: false,
       disableFontFace: true,
       verbosity: 0,
-      isEvalSupported: false,
-      useWasm: false,
-      isOffscreenCanvasSupported: false,
-      useWorkerFetch: false,
-      disableWorker: true,
-      cMapUrl: klasorUrl("cmaps"),
+      cMapUrl: `${FONT_CDN}/cmaps/`,
       cMapPacked: true,
-      standardFontDataUrl: klasorUrl("standard_fonts"),
-    } as Parameters<typeof pdfjs.getDocument>[0]).promise;
+      standardFontDataUrl: `${FONT_CDN}/standard_fonts/`,
+    });
+  } catch (error) {
+    throw pdfHatasiDonustur(error);
+  }
 
-    try {
-      const pages: PdfPage[] = [];
-      for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber++) {
-        const page = await doc.getPage(pageNumber);
-        const viewport = page.getViewport({ scale: 1 });
-        const content = await page.getTextContent();
+  try {
+    const pages: PdfPage[] = [];
+    for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber++) {
+      const page = await doc.getPage(pageNumber);
+      const viewport = page.getViewport({ scale: 1 });
+      const content = await page.getTextContent();
 
-        const tokens: PdfToken[] = [];
-        for (const item of content.items) {
-          if (!("str" in item)) continue;
-          const text = item.str;
-          if (text.length === 0) continue;
-          if (text.trim().length === 0) continue;
+      const tokens: PdfToken[] = [];
+      for (const item of content.items) {
+        if (!("str" in item)) continue;
+        const text = item.str;
+        if (text.length === 0) continue;
+        if (text.trim().length === 0) continue;
 
-          const x = item.transform[4] as number;
-          const baseline = item.transform[5] as number;
-          tokens.push({
-            text,
-            x,
-            endX: x + (item.width ?? 0),
-            top: viewport.height - baseline,
-          });
-        }
-
-        pages.push({
-          pageNumber,
-          width: viewport.width,
-          height: viewport.height,
-          tokens,
-          lines: groupIntoLines(tokens),
+        const x = item.transform[4] as number;
+        const baseline = item.transform[5] as number;
+        tokens.push({
+          text,
+          x,
+          endX: x + (item.width ?? 0),
+          top: viewport.height - baseline,
         });
-
-        page.cleanup();
       }
-      return pages;
-    } finally {
-      await doc.destroy();
+
+      pages.push({
+        pageNumber,
+        width: viewport.width,
+        height: viewport.height,
+        tokens,
+        lines: groupIntoLines(tokens),
+      });
+
+      page.cleanup();
     }
+    return pages;
   } catch (error) {
     throw pdfHatasiDonustur(error);
   } finally {
-    ortam.Worker = oncekiWorker;
+    await (doc as { destroy?: () => Promise<void> }).destroy?.();
   }
 }
 
 function pdfHatasiDonustur(error: unknown): PdfOkumaHatasi {
+  if (error instanceof PdfOkumaHatasi) return error;
   const mesaj = error instanceof Error ? error.message : String(error);
   const ad = error instanceof Error ? error.name : "";
   if (/password|encrypted/i.test(mesaj) || ad === "PasswordException") {
@@ -255,46 +198,4 @@ function groupIntoLines(tokens: PdfToken[]): PdfLine[] {
       maxX: ordered.reduce((max, t) => Math.max(max, t.endX), -Infinity),
     };
   });
-}
-
-type PdfjsModule = typeof import("pdfjs-dist");
-
-let pdfjsPromise: Promise<PdfjsModule> | null = null;
-
-async function loadPdfjs(): Promise<PdfjsModule> {
-  if (!pdfjsPromise) {
-    pdfjsPromise = pdfjsDosyadanYukle().catch((error) => {
-      pdfjsPromise = null;
-      throw error;
-    });
-  }
-  return pdfjsPromise;
-}
-
-async function pdfjsDosyadanYukle(): Promise<PdfjsModule> {
-  const dosya = path.join(pdfjsKok(), "legacy", "build", "pdf.mjs");
-  if (!existsSync(dosya)) {
-    throw new Error(`pdfjs bulunamadi: ${dosya}`);
-  }
-  // Dosya URL'si webpack'in paketi require() etmesini engeller; Vercel'de ESM olarak acilir.
-  return (await import(pathToFileURL(dosya).href)) as unknown as PdfjsModule;
-}
-
-function pdfjsKok(): string {
-  const adaylar: string[] = [];
-  try {
-    adaylar.push(
-      path.dirname(createRequire(pathToFileURL(path.join(process.cwd(), "package.json")).href).resolve("pdfjs-dist/package.json")),
-    );
-  } catch {
-    // cwd uzerinden cozulemedi.
-  }
-  try {
-    adaylar.push(path.dirname(createRequire(import.meta.url).resolve("pdfjs-dist/package.json")));
-  } catch {
-    // bundle konumundan cozulemedi.
-  }
-  adaylar.push(path.join(process.cwd(), "node_modules", "pdfjs-dist"));
-  const bulunan = adaylar.find((kok) => existsSync(path.join(kok, "legacy", "build", "pdf.mjs")));
-  return bulunan ?? adaylar[adaylar.length - 1];
 }

@@ -27,10 +27,10 @@
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.12",
     "next": "15.5.25",
-    "pdfjs-dist": "^5.7.284",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "recharts": "^3.10.1"
+    "recharts": "^3.10.1",
+    "unpdf": "^1.8.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
