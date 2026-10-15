@@ -1,4 +1,4 @@
-import { kanonikDersAdi } from "@/lib/ders/kanonik";
+import { kanonikDersAdi, tytMatematikParcasi } from "@/lib/ders/kanonik";
 import { prisma } from "@/lib/db";
 import { resolveDersGrubu } from "@/lib/pdf/parseUtils";
 import { ogrenciCozumleVeyaOlustur } from "@/lib/ogrenci/eslestirme";
@@ -103,7 +103,8 @@ export async function denemeyiKaydet(girdi: KayitGirdisi): Promise<KayitSonucu> 
       });
 
       const dersKayitlari = sinavaGoreDersler(ogrenci.dersler, sinavTuru).flatMap((ders) => {
-        const dersAdi = ders.isGrup ? ders.dersAdi : kanonikDersAdi(ders.dersAdi);
+        const hamAd = ders.isGrup ? ders.dersAdi : kanonikDersAdi(ders.dersAdi);
+        const dersAdi = ders.isGrup || !hamAd ? hamAd : tytMatematikParcasi(ders, hamAd);
         if (!dersAdi) return [];
         return [
           {

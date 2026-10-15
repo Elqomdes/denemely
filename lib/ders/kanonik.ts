@@ -11,6 +11,7 @@ export const TYT_DERSLERI = [
   "Felsefe",
   "Din",
   "Matematik",
+  "Geometri",
   "Fizik",
   "Kimya",
   "Biyoloji",
@@ -47,8 +48,9 @@ const TAKMA_ADLAR: Record<string, string> = {
   matematik: "Matematik",
   matematik1: "Matematik",
   tmat: "Matematik",
-  geometri: "Matematik",
-  geo1: "Matematik",
+  geometri: "Geometri",
+  geo1: "Geometri",
+  geo: "Geometri",
   fizik: "Fizik",
   fiz1: "Fizik",
   kimya: "Kimya",
@@ -122,12 +124,28 @@ export function kanonikDersAdi(hamAd: string): string | null {
   if (anahtar.includes("cograf") || anahtar.startsWith("cog")) return "Coğrafya";
   if (anahtar.includes("felsefe") || anahtar.startsWith("fel")) return "Felsefe";
   if (anahtar.includes("din")) return "Din";
-  if (anahtar.includes("geo") || anahtar.includes("matematik") || anahtar.includes("tmat")) return "Matematik";
+  if (anahtar.includes("geo")) return "Geometri";
+  if (anahtar.includes("matematik") || anahtar.includes("tmat")) return "Matematik";
   if (anahtar.includes("fizik") || anahtar.startsWith("fiz")) return "Fizik";
   if (anahtar.includes("kimya") || anahtar.startsWith("kim")) return "Kimya";
   if (anahtar.includes("biyoloji") || anahtar.startsWith("biy")) return "Biyoloji";
 
   return null;
+}
+
+/**
+ * TYT matematik testi 30 matematik + 10 geometridir. Eski kayitlarda geometri
+ * satiri da "Matematik" yazilmis olabilir; 10 soruluk parcayi ayiririz.
+ */
+export function tytMatematikParcasi(
+  ders: { dersAdi: string; dersGrubu?: string; isGrup?: boolean; soru: number },
+  ad: string,
+): string {
+  if (ad === "Geometri") return "Geometri";
+  if (ad !== "Matematik" || ders.isGrup) return ad;
+  const grup = ders.dersGrubu || resolveDersGrubu(ders.dersAdi);
+  if (grup === "TYT Matematik" && ders.soru === 10) return "Geometri";
+  return ad;
 }
 
 export interface HamDersSatiri {
@@ -157,14 +175,14 @@ export interface KanonikDersSatiri {
   kurumOrt: number | null;
 }
 
-/** Bir denemedeki ders satirlarini tek TYT listesinde toplar. Matematik-1 ile Geometri birlesir. */
+/** Bir denemedeki ders satirlarini tek listede toplar. TYT geometri matematikten ayri kalir. */
 export function tekDenemeDersleri(dersler: HamDersSatiri[]): KanonikDersSatiri[] {
   const altDersGruplari = new Set<string>();
   for (const ders of dersler) {
     if (ders.isGrup) continue;
-    const ad = kanonikDersAdi(ders.dersAdi);
-    if (!ad) continue;
-    altDersGruplari.add(resolveDersGrubu(ad));
+    const hamAd = kanonikDersAdi(ders.dersAdi);
+    if (!hamAd) continue;
+    altDersGruplari.add(resolveDersGrubu(tytMatematikParcasi(ders, hamAd)));
   }
 
   const harita = new Map<string, KanonikDersSatiri>();
@@ -196,10 +214,10 @@ export function tekDenemeDersleri(dersler: HamDersSatiri[]): KanonikDersSatiri[]
   };
 
   for (const ders of dersler) {
-    const ad = kanonikDersAdi(ders.dersAdi);
-    if (!ad) continue;
+    const hamAd = kanonikDersAdi(ders.dersAdi);
+    if (!hamAd) continue;
     if (ders.isGrup && altDersGruplari.has(ders.dersGrubu)) continue;
-    ekle(ders, ad);
+    ekle(ders, tytMatematikParcasi(ders, hamAd));
   }
 
   return [...harita.values()]
