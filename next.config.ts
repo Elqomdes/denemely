@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
   // pdfjs-dist ve prisma sunucu tarafinda kendi dosyalarini okur, bundle edilmemeli.
   serverExternalPackages: ["pdfjs-dist", "@prisma/client"],
   outputFileTracingIncludes: {
-    "/panel/denemeler/yukle": [
+    "/*": [
       "./node_modules/pdfjs-dist/package.json",
       "./node_modules/pdfjs-dist/legacy/**",
       "./node_modules/pdfjs-dist/cmaps/**",

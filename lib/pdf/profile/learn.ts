@@ -1,5 +1,5 @@
 import type { PdfPage } from "../extract";
-import { openaiAnahtari, OpenAIHatasi, profilUret } from "../../openai/client";
+import { openaiAnahtari, profilUret } from "../../openai/client";
 import type { ParsedExamFile } from "../types";
 import { sayfaDokumu } from "./dump";
 import { parseProfilSayfasi } from "./interpreter";
@@ -75,12 +75,10 @@ export async function yeniSablonOgren(
     try {
       profil = await profilUret({ sistem: SISTEM, kullanici });
     } catch (error) {
-      if (error instanceof OpenAIHatasi) {
-        throw new ProfilOgrenmeHatasi(
-          `Yeni şablon öğrenilemedi: ${error.message}. Dosyayı Hedefly ekibine iletebilirsiniz.`,
-        );
-      }
-      throw error;
+      const mesaj = error instanceof Error ? error.message : "bağlantı koptu";
+      throw new ProfilOgrenmeHatasi(
+        `Yeni şablon öğrenilemedi: ${mesaj}. Dosyayı Hedefly ekibine iletebilirsiniz.`,
+      );
     }
 
     profil.id = slugUret(profil.id || profil.ad || profil.yayin || dosyaAdi || "profil");

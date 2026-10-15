@@ -13,6 +13,38 @@ import { parseSinavTuru } from "@/lib/sinav";
 
 const MAKS_BOYUT = 25 * 1024 * 1024;
 
+function nextYonlendirmeMi(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const digest = "digest" in error ? String(error.digest) : "";
+  return digest.startsWith("NEXT_REDIRECT") || digest.startsWith("NEXT_NOT_FOUND");
+}
+
+function ayristirmaHatasi(error: unknown, dosyaAdi: string, kurumSlug: string): string {
+  const ad = error instanceof Error ? error.name : "";
+  const mesaj = error instanceof Error ? error.message : String(error);
+  const kod =
+    error && typeof error === "object" && "code" in error ? String((error as { code: unknown }).code) : "";
+
+  if (error instanceof ProfilOgrenmeHatasi || ad === "ProfilOgrenmeHatasi" || ad === "OpenAIHatasi") {
+    console.warn(`Sablon ogrenilemedi: ${dosyaAdi} (${mesaj})`);
+    return mesaj || "Şablon öğrenilemedi.";
+  }
+  if (error instanceof DesteklenmeyenFormatHatasi || ad === "DesteklenmeyenFormatHatasi") {
+    console.warn(`Desteklenmeyen format yuklendi: ${dosyaAdi} (kurum: ${kurumSlug})`);
+    return "Bu yayının sonuç belgesi formatı henüz desteklenmiyor. Dosyayı Hedefly ekibine iletirseniz kısa sürede ekleyebiliriz.";
+  }
+  if (error instanceof PdfOkumaHatasi || ad === "PdfOkumaHatasi") {
+    console.warn(`PDF okunamadi: ${dosyaAdi}`);
+    return mesaj || "PDF okunamadı.";
+  }
+  if (kod === "EROFS" || /erofs|read-only file system/i.test(`${kod} ${mesaj}`)) {
+    console.error("PDF taslagi yazilamadi:", error);
+    return "PDF okundu ama önizleme kaydı oluşturulamadı. Lütfen tekrar deneyin.";
+  }
+  console.error("PDF ayristirma hatasi:", error);
+  return "PDF okunurken bir sorun oluştu. Dosya büyükse birkaç dakika bekleyip tekrar deneyin; sürmezse Hedefly'a iletin.";
+}
+
 export interface YuklemeDurumu {
   hata?: string;
 }
@@ -54,29 +86,8 @@ export async function pdfYukle(
       parsed,
     });
   } catch (error) {
-    const ad = error instanceof Error ? error.name : "";
-    if (error instanceof ProfilOgrenmeHatasi || ad === "ProfilOgrenmeHatasi") {
-      const mesaj = error instanceof Error ? error.message : "Şablon öğrenilemedi.";
-      console.warn(`Sablon ogrenilemedi: ${dosyaAdi} (${mesaj})`);
-      return { hata: mesaj };
-    }
-    if (error instanceof DesteklenmeyenFormatHatasi || ad === "DesteklenmeyenFormatHatasi") {
-      console.warn(`Desteklenmeyen format yuklendi: ${dosyaAdi} (kurum: ${kurum.slug})`);
-      return {
-        hata:
-          "Bu yayının sonuç belgesi formatı henüz desteklenmiyor. Dosyayı Hedefly ekibine iletirseniz kısa sürede ekleyebiliriz.",
-      };
-    }
-    if (error instanceof PdfOkumaHatasi || ad === "PdfOkumaHatasi") {
-      const mesaj = error instanceof Error ? error.message : "PDF okunamadı.";
-      console.warn(`PDF okunamadi: ${dosyaAdi}`);
-      return { hata: mesaj };
-    }
-    console.error("PDF ayristirma hatasi:", error);
-    return {
-      hata:
-        "PDF okunurken bir sorun oluştu. Dosya büyükse birkaç dakika bekleyip tekrar deneyin; sürmezse Hedefly'a iletin.",
-    };
+    if (nextYonlendirmeMi(error)) throw error;
+    return { hata: ayristirmaHatasi(error, dosyaAdi, kurum.slug) };
   }
 
   redirect(`/panel/denemeler/yukle/${token}`);

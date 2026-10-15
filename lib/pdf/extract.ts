@@ -7,6 +7,7 @@
  * (sol/sag kolon) ayiriyoruz.
  */
 
+import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -69,7 +70,16 @@ export async function extractPdfPages(data: Uint8Array): Promise<PdfPage[]> {
     );
   }
 
-  const pdfjs = await loadPdfjs();
+  let pdfjs: PdfjsModule;
+  try {
+    pdfjs = await loadPdfjs();
+  } catch (error) {
+    console.error("pdfjs yuklenemedi:", error);
+    throw new PdfOkumaHatasi(
+      "PDF okuyucu bu sunucuda açılamadı. Biraz sonra tekrar deneyin.",
+      "okuyucu",
+    );
+  }
   const kok = pdfjsKok();
 
   // pdfjs TypedArray'i worker'a devreder; kopya olmazsa tampon boşalır ve
@@ -77,7 +87,11 @@ export async function extractPdfPages(data: Uint8Array): Promise<PdfPage[]> {
   const kopya = new Uint8Array(data.byteLength);
   kopya.set(data);
 
-  const klasorUrl = (alt: string) => pathToFileURL(path.join(kok, alt) + path.sep).href;
+  const klasorUrl = (alt: string) => {
+    const klasor = path.join(kok, alt);
+    if (!existsSync(klasor)) return undefined;
+    return pathToFileURL(klasor + path.sep).href;
+  };
 
   const ortam = globalThis as { Worker?: typeof Worker };
   const oncekiWorker = ortam.Worker;
@@ -86,10 +100,9 @@ export async function extractPdfPages(data: Uint8Array): Promise<PdfPage[]> {
   ortam.Worker = undefined;
 
   try {
-    if (pdfjs.GlobalWorkerOptions) {
-      pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(
-        path.join(kok, "legacy", "build", "pdf.worker.mjs"),
-      ).href;
+    const workerDosyasi = path.join(kok, "legacy", "build", "pdf.worker.mjs");
+    if (pdfjs.GlobalWorkerOptions && existsSync(workerDosyasi)) {
+      pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(workerDosyasi).href;
     }
 
     const doc = await pdfjs.getDocument({

@@ -30,6 +30,7 @@ model Institution {
   birlestirmeYoksaymalari StudentMergeIgnore[]
   takmaAdlar   StudentNameAlias[]
   veliKarneleri VeliKarne[]
+  pdfTaslaklari PdfUploadDraft[]
 }
 
 /// "Bu iki kayit ayni kisi degil" isareti; birlestirme onerisi listesini temiz tutar.
@@ -259,4 +260,19 @@ model PdfFormatProfile {
   json      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Yukleme onizlemesi. Vercel lambda'lar arasi dosya paylasmaz; taslak veritabaninda durur.
+model PdfUploadDraft {
+  token         String      @id
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  yukleyenId    String
+  dosyaAdi      String
+  parsed        String
+  createdAt     DateTime    @default(now())
+  expiresAt     DateTime
+
+  @@index([institutionId])
+  @@index([expiresAt])
 }
