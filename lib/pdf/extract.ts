@@ -12,6 +12,29 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+const PDFJS_SURUM = "5.7.284";
+const PDFJS_CDN = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_SURUM}`;
+
+const PromiseApi = Promise as unknown as {
+  withResolvers?: <T>() => {
+    promise: Promise<T>;
+    resolve: (value: T | PromiseLike<T>) => void;
+    reject: (reason?: unknown) => void;
+  };
+};
+if (typeof PromiseApi.withResolvers !== "function") {
+  // pdfjs 5 Node 22 ister; Vercel bazen 20 calistirir.
+  PromiseApi.withResolvers = <T>() => {
+    let resolve!: (value: T | PromiseLike<T>) => void;
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<T>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  };
+}
+
 export interface PdfToken {
   text: string;
   /** Sol kenar (PDF punto birimi) */
@@ -70,39 +93,37 @@ export async function extractPdfPages(data: Uint8Array): Promise<PdfPage[]> {
     );
   }
 
+  const ortam = globalThis as { Worker?: typeof Worker };
+  const oncekiWorker = ortam.Worker;
+  // Node 22'de Worker var; pdfjs tarayici sanip worker dosyasi arar.
+  // Modul yuklenmeden kapatilir; aksi halde import asamasinda dusebilir.
+  ortam.Worker = undefined;
+
   let pdfjs: PdfjsModule;
   try {
     pdfjs = await loadPdfjs();
   } catch (error) {
+    ortam.Worker = oncekiWorker;
     console.error("pdfjs yuklenemedi:", error);
     throw new PdfOkumaHatasi(
       "PDF okuyucu bu sunucuda açılamadı. Biraz sonra tekrar deneyin.",
       "okuyucu",
     );
   }
-  const kok = pdfjsKok();
 
-  // pdfjs TypedArray'i worker'a devreder; kopya olmazsa tampon boşalır ve
-  // sağlam dosya "bozuk PDF" diye reddedilir.
+  const kok = pdfjsKok();
   const kopya = new Uint8Array(data.byteLength);
   kopya.set(data);
 
   const klasorUrl = (alt: string) => {
     const klasor = path.join(kok, alt);
-    if (!existsSync(klasor)) return undefined;
+    if (!existsSync(klasor)) return `${PDFJS_CDN}/${alt}/`;
     return pathToFileURL(klasor + path.sep).href;
   };
 
-  const ortam = globalThis as { Worker?: typeof Worker };
-  const oncekiWorker = ortam.Worker;
-  // Node 22'de Worker var; pdfjs tarayici sanip worker dosyasi arar ve dusar.
-  // Metin okumak icin sahte (ayni surec) worker yeterli.
-  ortam.Worker = undefined;
-
   try {
-    const workerDosyasi = path.join(kok, "legacy", "build", "pdf.worker.mjs");
-    if (pdfjs.GlobalWorkerOptions && existsSync(workerDosyasi)) {
-      pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(workerDosyasi).href;
+    if (pdfjs.GlobalWorkerOptions) {
+      pdfjs.GlobalWorkerOptions.workerSrc = "";
     }
 
     const doc = await pdfjs.getDocument({
@@ -114,6 +135,7 @@ export async function extractPdfPages(data: Uint8Array): Promise<PdfPage[]> {
       useWasm: false,
       isOffscreenCanvasSupported: false,
       useWorkerFetch: false,
+      disableWorker: true,
       cMapUrl: klasorUrl("cmaps"),
       cMapPacked: true,
       standardFontDataUrl: klasorUrl("standard_fonts"),
@@ -241,21 +263,38 @@ let pdfjsPromise: Promise<PdfjsModule> | null = null;
 
 async function loadPdfjs(): Promise<PdfjsModule> {
   if (!pdfjsPromise) {
-    pdfjsPromise = (async () => {
-      const mod = (await import(
-        "pdfjs-dist/legacy/build/pdf.mjs"
-      )) as unknown as PdfjsModule;
-      return mod;
-    })();
+    pdfjsPromise = pdfjsDosyadanYukle().catch((error) => {
+      pdfjsPromise = null;
+      throw error;
+    });
   }
   return pdfjsPromise;
 }
 
-function pdfjsKok(): string {
-  try {
-    const req = createRequire(import.meta.url);
-    return path.dirname(req.resolve("pdfjs-dist/package.json"));
-  } catch {
-    return path.join(process.cwd(), "node_modules", "pdfjs-dist");
+async function pdfjsDosyadanYukle(): Promise<PdfjsModule> {
+  const dosya = path.join(pdfjsKok(), "legacy", "build", "pdf.mjs");
+  if (!existsSync(dosya)) {
+    throw new Error(`pdfjs bulunamadi: ${dosya}`);
   }
+  // Dosya URL'si webpack'in paketi require() etmesini engeller; Vercel'de ESM olarak acilir.
+  return (await import(pathToFileURL(dosya).href)) as unknown as PdfjsModule;
+}
+
+function pdfjsKok(): string {
+  const adaylar: string[] = [];
+  try {
+    adaylar.push(
+      path.dirname(createRequire(pathToFileURL(path.join(process.cwd(), "package.json")).href).resolve("pdfjs-dist/package.json")),
+    );
+  } catch {
+    // cwd uzerinden cozulemedi.
+  }
+  try {
+    adaylar.push(path.dirname(createRequire(import.meta.url).resolve("pdfjs-dist/package.json")));
+  } catch {
+    // bundle konumundan cozulemedi.
+  }
+  adaylar.push(path.join(process.cwd(), "node_modules", "pdfjs-dist"));
+  const bulunan = adaylar.find((kok) => existsSync(path.join(kok, "legacy", "build", "pdf.mjs")));
+  return bulunan ?? adaylar[adaylar.length - 1];
 }

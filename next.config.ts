@@ -17,6 +17,12 @@ const nextConfig: NextConfig = {
       "./node_modules/pdfjs-dist/standard_fonts/**",
       "./data/format-profiles/**",
     ],
+    "/panel/denemeler/yukle": [
+      "./node_modules/pdfjs-dist/package.json",
+      "./node_modules/pdfjs-dist/legacy/**",
+      "./node_modules/pdfjs-dist/cmaps/**",
+      "./node_modules/pdfjs-dist/standard_fonts/**",
+    ],
   },
   experimental: {
     optimizePackageImports: ["recharts"],

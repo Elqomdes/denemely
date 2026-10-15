@@ -1,7 +1,8 @@
 {
   "functions": {
     "app/panel/denemeler/yukle/page.tsx": {
-      "maxDuration": 180
+      "maxDuration": 180,
+      "includeFiles": "node_modules/pdfjs-dist/**"
     }
   }
 }
