@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { HizliLink } from "@/components/HizliLink";
 import { SINAV_TURLERI, type SinavTuru, sinavQuery } from "@/lib/sinav";
 
 export function SinavTuruSecici({
@@ -19,7 +19,7 @@ export function SinavTuruSecici({
       {SINAV_TURLERI.map((tur) => {
         const secili = deger === tur;
         return (
-          <Link
+          <HizliLink
             key={tur}
             href={`${yol}?${sinavQuery(tur, params)}`}
             className={
@@ -30,7 +30,7 @@ export function SinavTuruSecici({
             aria-current={secili ? "page" : undefined}
           >
             {tur}
-          </Link>
+          </HizliLink>
         );
       })}
     </div>

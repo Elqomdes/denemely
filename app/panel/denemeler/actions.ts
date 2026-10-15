@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { kurumOturumuGerekli } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db";
+import { kurumOnbellekYenile } from "@/lib/onbellek";
 import { parseSinavTuru } from "@/lib/sinav";
 
 /**
@@ -23,6 +24,7 @@ export async function denemeSil(formData: FormData): Promise<void> {
 
   await prisma.exam.delete({ where: { id: deneme.id } });
 
+  kurumOnbellekYenile(kurum.id);
   revalidatePath("/panel");
   revalidatePath("/panel/denemeler");
   revalidatePath("/panel/ogrenciler");

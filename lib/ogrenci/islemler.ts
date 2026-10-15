@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { prisma } from "@/lib/db";
+import { kurumSorgusu } from "@/lib/onbellek";
 import { normalizePersonName } from "@/lib/pdf/parseUtils";
 import { adaylariBul, type AdayOgrenci, type BirlestirmeAdayi } from "./benzerlik";
 
@@ -9,7 +10,8 @@ function ikiliAnahtari(aId: string, bId: string): [string, string] {
 }
 
 /** Kurumdaki tum ogrencileri deneme kimlikleriyle birlikte getirip adaylari hesaplar. */
-export const birlestirmeAdaylari = cache(async (institutionId: string): Promise<BirlestirmeAdayi[]> => {
+export const birlestirmeAdaylari = cache((institutionId: string): Promise<BirlestirmeAdayi[]> =>
+  kurumSorgusu(["birlestirme-adaylari", institutionId], institutionId, async () => {
   const [ogrenciler, yoksaymalar] = await Promise.all([
     prisma.student.findMany({
       where: { institutionId },
@@ -44,7 +46,8 @@ export const birlestirmeAdaylari = cache(async (institutionId: string): Promise<
     const [a, b] = ikiliAnahtari(aday.hedef.id, aday.kaynak.id);
     return !yoksayilan.has(`${a}|${b}`);
   });
-});
+  }),
+);
 
 /** "Bu ikisi ayni kisi degil" isareti; oneri listesinde bir daha gosterilmez. */
 export async function farkliKisilerOlarakIsaretle(

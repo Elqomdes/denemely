@@ -8,6 +8,7 @@ import { ROLLER } from "@/lib/auth/roller";
 import { prisma } from "@/lib/db";
 import { kullaniciAdiniNormallestir } from "@/lib/auth/kullaniciAdi";
 import { slugOlustur } from "@/lib/format";
+import { kurumOnbellekYenile } from "@/lib/onbellek";
 
 export interface FormDurumu {
   hata?: string;
@@ -20,6 +21,7 @@ const EN_KISA_SIFRE = 8;
 const NOT_TAVANI = 2000;
 
 function kurumYollariniTazele(kurumId: string, sluglar: string[]) {
+  kurumOnbellekYenile(kurumId);
   revalidatePath("/yonetim");
   revalidatePath(`/yonetim/kurumlar/${kurumId}`);
   revalidatePath("/panel");

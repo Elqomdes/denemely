@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { HizliLink } from "@/components/HizliLink";
 import { CikisIkonu } from "@/components/Ikonlar";
 import { Logo } from "@/components/Marka";
 import { SayfalariHazirla } from "@/components/SayfalariHazirla";
@@ -30,9 +30,9 @@ export default async function PanelLayout({ children }: { children: React.ReactN
       <SayfalariHazirla />
       <aside className="yazdirma-gizle bg-slate-950 text-white md:sticky md:top-0 md:flex md:h-screen md:w-64 md:shrink-0 md:flex-col">
         <div className="flex h-16 items-center justify-between border-b border-white/10 px-5">
-          <Link href="/panel">
+          <HizliLink href="/panel">
             <Logo boyut="md" ton="acik" />
-          </Link>
+          </HizliLink>
           <span className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-cyan-300">
             TYT · AYT
           </span>

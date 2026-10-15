@@ -17,8 +17,8 @@ const nextConfig: NextConfig = {
     // Dinamik sayfalar varsayilan olarak her geciste yeniden istenir.
     // Bir kez acilan sayfa bu sure boyunca aninda geri gelir.
     staleTimes: {
-      dynamic: 120,
-      static: 300,
+      dynamic: 300,
+      static: 600,
     },
     serverActions: {
       // Bir denemede 30+ ogrencinin PDF'i yuklenebiliyor.

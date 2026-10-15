@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { dersSiraNo, kanonikDersAdi, tekDenemeDersleri } from "@/lib/ders/kanonik";
 import { prisma } from "@/lib/db";
+import { kurumSorgusu } from "@/lib/onbellek";
 import { resolveDersGrubu } from "@/lib/pdf/parseUtils";
 import {
   AYT_GRUP_SIRASI,
@@ -72,7 +73,8 @@ function kazanimOzetiHazirla(
 }
 
 /** Kurum genel bakis verileri */
-export const kurumOzeti = cache(async (institutionId: string, sinavTuru: SinavTuru = "TYT") => {
+export const kurumOzeti = cache((institutionId: string, sinavTuru: SinavTuru = "TYT") =>
+  kurumSorgusu(["kurum-ozet", institutionId, sinavTuru], institutionId, async () => {
   const sinavFiltresi = { institutionId, sinavTuru };
   const [denemeSayisi, ogrenciSayisi, denemeler] = await Promise.all([
     prisma.exam.count({ where: sinavFiltresi }),
@@ -158,7 +160,8 @@ export const kurumOzeti = cache(async (institutionId: string, sinavTuru: SinavTu
       : null,
     zayifKazanimlar,
   };
-});
+  }),
+);
 
 /**
  * En dusuk basarili kazanimlar. Tek soruluk kazanimlarin listeyi doldurmasini
@@ -217,7 +220,8 @@ export const enZayifKazanimlar = cache(async ({
 });
 
 /** Kurumun tum denemeleri, katilim ve ortalamalariyla */
-export const denemeListesi = cache(async (institutionId: string, sinavTuru: SinavTuru = "TYT") => {
+export const denemeListesi = cache((institutionId: string, sinavTuru: SinavTuru = "TYT") =>
+  kurumSorgusu(["deneme-listesi", institutionId, sinavTuru], institutionId, async () => {
   const denemeler = await prisma.exam.findMany({
     where: { institutionId, sinavTuru },
     orderBy: { tarih: "desc" },
@@ -250,10 +254,12 @@ export const denemeListesi = cache(async (institutionId: string, sinavTuru: Sina
     ortalamaPuan: harita.get(deneme.id)?._avg.puan ?? null,
     enYuksekNet: harita.get(deneme.id)?._max.toplamNet ?? null,
   }));
-});
+  }),
+);
 
 /** Bir denemenin detayi: ogrenci siralamasi ve ders grubu ortalamalari */
-export const denemeDetayi = cache(async (examId: string, institutionId: string) => {
+export const denemeDetayi = cache((examId: string, institutionId: string) =>
+  kurumSorgusu(["deneme-detay", examId, institutionId], institutionId, async () => {
   const deneme = await prisma.exam.findFirst({
     where: { id: examId, institutionId },
     select: {
@@ -336,7 +342,8 @@ export const denemeDetayi = cache(async (examId: string, institutionId: string) 
     dersler: denemeDersOrtalamalari(hamDersler),
     zayifKazanimlar,
   };
-});
+  }),
+);
 
 function denemeDersOrtalamalari(
   satirlar: Array<{
@@ -434,7 +441,8 @@ export interface ZorSoru extends SoruAnalizi {
  * degisir. Bu yuzden gruplandirma (ders grubu + cevap anahtari) ikilisine gore
  * yapiliyor; ayni anahtar = ayni soru sirasi.
  */
-export const soruAnalizi = cache(async (examId: string, institutionId: string) => {
+export const soruAnalizi = cache((examId: string, institutionId: string) =>
+  kurumSorgusu(["soru-analiz", examId, institutionId], institutionId, async () => {
   const deneme = await prisma.exam.findFirst({
     where: { id: examId, institutionId },
     select: { id: true, ad: true, tarih: true, sinavTuru: true },
@@ -536,18 +544,23 @@ export const soruAnalizi = cache(async (examId: string, institutionId: string) =
     .slice(0, 15);
 
   return { deneme, gruplar, enZorSorular };
-});
+  }),
+);
 
 /**
  * Kurumdaki ogrenciler; arama ve sinif filtresiyle.
  * Arama, normalize edilmis (buyuk harfli) ad alani uzerinden yapilir.
  */
-export const ogrenciListesi = cache(async (
+export const ogrenciListesi = cache((
   institutionId: string,
   filtre: { arama?: string; sinif?: string; sinavTuru?: SinavTuru } = {},
 ) => {
   const arama = filtre.arama?.trim();
   const sinavTuru = parseSinavTuru(filtre.sinavTuru);
+  return kurumSorgusu(
+    ["ogrenci-listesi", institutionId, arama ?? "", filtre.sinif ?? "", sinavTuru],
+    institutionId,
+    async () => {
 
   const [ogrenciler, siniflar, sonDeneme] = await Promise.all([
     prisma.student.findMany({
@@ -621,14 +634,17 @@ export const ogrenciListesi = cache(async (
       }))
       .sort((a, b) => a.adSoyad.localeCompare(b.adSoyad, "tr")),
   };
+    },
+  );
 });
 
 /** Bir ogrencinin tum denemelerdeki gelisimi */
-export const ogrenciAnalizi = cache(async (
+export const ogrenciAnalizi = cache((
   studentId: string,
   institutionId: string,
   sinavTuru: SinavTuru = "TYT",
-) => {
+) =>
+  kurumSorgusu(["ogrenci-analiz", studentId, institutionId, sinavTuru], institutionId, async () => {
   const ogrenci = await prisma.student.findFirst({
     where: { id: studentId, institutionId },
     select: {
@@ -707,7 +723,8 @@ export const ogrenciAnalizi = cache(async (
       kurumOrtalamaNet: kurumHaritasi.get(sonuc.exam.id) ?? null,
     })),
   };
-});
+  }),
+);
 
 export interface EslesenKazanim {
   dersAdi: string;

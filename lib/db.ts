@@ -24,7 +24,7 @@ function prismaUrl(url: string): string {
   const pooler = url.includes("pooler.supabase.com") || url.includes(":6543/");
   const ekler: string[] = [];
   if (pooler && !/[?&]pgbouncer=/.test(url)) ekler.push("pgbouncer=true");
-  if (pooler && !/[?&]connection_limit=/.test(url)) ekler.push("connection_limit=1");
+  if (pooler && !/[?&]connection_limit=/.test(url)) ekler.push("connection_limit=5");
   if (!/[?&]sslmode=/.test(url)) ekler.push("sslmode=require");
   if (ekler.length === 0) return url;
   return `${url}${url.includes("?") ? "&" : "?"}${ekler.join("&")}`;

@@ -3,7 +3,17 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-const PANEL_YOLLARI = ["/panel", "/panel/denemeler", "/panel/ogrenciler"];
+const PANEL_YOLLARI = [
+  "/panel",
+  "/panel?sinav=TYT",
+  "/panel?sinav=AYT",
+  "/panel/denemeler",
+  "/panel/denemeler?sinav=TYT",
+  "/panel/denemeler?sinav=AYT",
+  "/panel/ogrenciler",
+  "/panel/ogrenciler?sinav=TYT",
+  "/panel/ogrenciler?sinav=AYT",
+];
 
 /** Ana bolumler acilir acilmaz istenir; sonraki tiklamada sunucu beklenmez. */
 export function SayfalariHazirla() {

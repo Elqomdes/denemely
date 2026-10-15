@@ -9,6 +9,7 @@ import { asamaKaydet, asamaOku, asamaSil } from "@/lib/import/staging";
 import { DesteklenmeyenFormatHatasi } from "@/lib/pdf/detect";
 import { PdfOkumaHatasi } from "@/lib/pdf/extract";
 import { parseExamPdf, ProfilOgrenmeHatasi } from "@/lib/pdf/parseExamPdf";
+import { kurumOnbellekYenile } from "@/lib/onbellek";
 import { parseSinavTuru } from "@/lib/sinav";
 
 const MAKS_BOYUT = 25 * 1024 * 1024;
@@ -137,6 +138,7 @@ export async function denemeOnayla(
   }
 
   await asamaSil(token);
+  kurumOnbellekYenile(kurum.id);
   revalidatePath("/panel");
   revalidatePath("/panel/denemeler");
   revalidatePath("/panel/ogrenciler");

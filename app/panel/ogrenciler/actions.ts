@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { kurumOturumuGerekli } from "@/lib/auth/guards";
+import { kurumOnbellekYenile } from "@/lib/onbellek";
 import {
   farkliKisilerOlarakIsaretle,
   ogrenciGuncelle as ogrenciGuncelleIslemi,
@@ -22,7 +23,8 @@ export interface TaramaDurumu {
   satirlar?: string[];
 }
 
-function panelYollariniYenile() {
+function panelYollariniYenile(institutionId: string) {
+  kurumOnbellekYenile(institutionId);
   revalidatePath("/panel");
   revalidatePath("/panel/ogrenciler");
   revalidatePath("/panel/ogrenciler/birlestir");
@@ -56,7 +58,7 @@ export async function ogrenciGuncelle(
     };
   }
 
-  panelYollariniYenile();
+  panelYollariniYenile(kurum.id);
   revalidatePath(`/panel/ogrenciler/${id}`);
   return { basari: "Öğrenci bilgileri güncellendi." };
 }
@@ -84,7 +86,7 @@ export async function ogrencileriBirlestir(formData: FormData): Promise<void> {
     korunacakAd,
   });
 
-  panelYollariniYenile();
+  panelYollariniYenile(kurum.id);
   revalidatePath(`/panel/ogrenciler/${hedefId}`);
 
   const hedefYol = donus.startsWith("/panel/ogrenciler/") && donus !== "/panel/ogrenciler/birlestir"
@@ -103,7 +105,7 @@ export async function adSirasiTara(
 
   try {
     const sonuc = await adSirasiTaraVeBirlestir(kurum.id);
-    panelYollariniYenile();
+    panelYollariniYenile(kurum.id);
 
     if (sonuc.birlesen.length === 0 && sonuc.atlanan.length === 0) {
       return { basari: "Sıra farkı olan kayıt bulunmadı." };
@@ -139,6 +141,7 @@ export async function farkliKisiler(formData: FormData): Promise<void> {
 
   await farkliKisilerOlarakIsaretle(kurum.id, hedefId, kaynakId);
 
+  kurumOnbellekYenile(kurum.id);
   revalidatePath("/panel/ogrenciler/birlestir");
   redirect("/panel/ogrenciler/birlestir?durum=yoksayildi");
 }
