@@ -279,23 +279,26 @@ export function RehberlikKarnesi({
   }
 
   return (
-    <article className="ekran-disi text-slate-800">
-      <header className="karne-renk flex items-center justify-between gap-4 rounded-lg bg-slate-900 px-4 py-3 text-white">
+    <article className="baski ekran-disi text-slate-800">
+      <svg className="baski-serit" viewBox="0 0 100 1" preserveAspectRatio="none" aria-hidden="true">
+        <rect width="100" height="1" fill="#1e1b4b" />
+      </svg>
+      <header className="baski-ust">
         <div>
-          <Logo boyut="sm" ton="acik" />
-          <p className="mt-1 text-[12px] text-slate-300">{sinavTuru} gelişim karnesi</p>
+          <Logo boyut="sm" />
+          <p className="baski-kurum">{kurumAd}</p>
         </div>
-        <div className="text-right text-[12px] text-slate-300">
-          <p className="font-medium text-white">{kurumAd}</p>
+        <div className="baski-ust-sag">
+          <p className="baski-belge">{sinavTuru} gelişim karnesi</p>
           <p>{kisaTarih(new Date())}</p>
         </div>
       </header>
 
-      <section className="mt-4">
-        <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-slate-950">{ogrenci.adSoyad}</h1>
-        <p className="mt-1 text-[13px] text-slate-600">{kimlik}</p>
-        <p className="mt-0.5 text-[13px] text-slate-600">
-          Bu kâğıt son denemeni önceki denemelerinle karşılaştırır: {sonDeneme.ad} · {kisaTarih(sonDeneme.tarih)}
+      <section className="baski-kimlik">
+        <h1>{ogrenci.adSoyad}</h1>
+        {kimlik ? <p className="baski-meta">{kimlik}</p> : null}
+        <p className="baski-meta">
+          Son deneme: {sonDeneme.ad} · {kisaTarih(sonDeneme.tarih)}
         </p>
       </section>
 

@@ -4,6 +4,7 @@ import { DaireGrafik } from "@/components/grafikler/istemci";
 import { GRAFIK_RENKLERI } from "@/components/grafikler/renkler";
 import { Kart } from "@/components/Kutu";
 import { HedeflyImza, Logo } from "@/components/Marka";
+import { VeliKarnesiBaski } from "@/components/veli/VeliKarnesiBaski";
 import { YazdirButonu } from "@/components/YazdirButonu";
 import { grupKisaAdi } from "@/lib/analiz";
 import { basariArkaPlani, net, puan, tamSayi, tarih, yuzde } from "@/lib/format";
@@ -41,14 +42,14 @@ export default async function VeliKarneSayfasi({ params }: { params: Promise<{ t
 
   return (
     <div className="min-h-screen bg-zemin">
-      <header className="border-b border-cerceve bg-white">
+      <header className="yazdirma-gizle border-b border-cerceve bg-white">
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 px-4 py-4">
           <Logo boyut="sm" />
-          <YazdirButonu yazi="Yazdır" />
+          <YazdirButonu yazi="Yazdır" dosyaAdi={`${ogrenci.adSoyad} ${sinav.ad}`} />
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl space-y-4 px-4 py-6">
+      <main className="yazdirma-gizle mx-auto max-w-3xl space-y-4 px-4 py-6">
         <div>
           <p className="text-[12px] font-medium uppercase tracking-wide text-slate-500">{kurumAd}</p>
           <h1 className="mt-1 text-[22px] font-semibold text-slate-950">{ogrenci.adSoyad}</h1>
@@ -167,6 +168,16 @@ export default async function VeliKarneSayfasi({ params }: { params: Promise<{ t
         </p>
         <HedeflyImza />
       </main>
+
+      <VeliKarnesiBaski
+        kurumAd={kurumAd}
+        ogrenci={ogrenci}
+        sinav={sinav}
+        sonuc={sonuc}
+        gruplar={gruplar}
+        dersler={dersler}
+        kazanimGruplari={kazanimGruplari}
+      />
     </div>
   );
 }
