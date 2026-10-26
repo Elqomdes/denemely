@@ -5,6 +5,7 @@ import { kurumSorgusu } from "@/lib/onbellek";
 import { resolveDersGrubu } from "@/lib/pdf/parseUtils";
 import {
   AYT_GRUP_SIRASI,
+  SINAV_GRUP_SET,
   TYT_GRUP_SIRASI,
   parseSinavTuru,
   type SinavTuru,
@@ -736,6 +737,8 @@ export interface EslesenKazanim {
   herDenemedeYanlis: boolean;
   sonDenemedeVar: boolean;
   sonDenemedeYanlis: boolean;
+  sonDenemeBos: number;
+  sonDenemedeBos: boolean;
   oncekiYanlisDeneme: number;
   soru: number;
   dogru: number;
@@ -782,21 +785,24 @@ export function kazanimlariEslestir(
       soru: number;
       dogru: number;
       yanlis: number;
-      oturumlar: Map<string, { dogru: number; yanlis: number }>;
+      oturumlar: Map<string, { dogru: number; yanlis: number; soru: number }>;
     }
   >();
 
   for (const [index, satir] of satirlar.entries()) {
     const dersAdi = kanonikDersAdi(satir.dersAdi);
     if (!dersAdi) continue;
-    const dersGrubu = resolveDersGrubu(dersAdi);
+    const dersGrubu = SINAV_GRUP_SET.has(satir.dersGrubu)
+      ? satir.dersGrubu
+      : resolveDersGrubu(dersAdi);
     const anahtar = `${dersGrubu}\0${dersAdi.toLocaleLowerCase("tr")}\0${satir.kazanim.trim().toLocaleLowerCase("tr")}`;
     const oturum = satir.examResultId ?? `satir-${index}`;
     const mevcut = harita.get(anahtar);
     if (mevcut) {
-      const oturumToplami = mevcut.oturumlar.get(oturum) ?? { dogru: 0, yanlis: 0 };
+      const oturumToplami = mevcut.oturumlar.get(oturum) ?? { dogru: 0, yanlis: 0, soru: 0 };
       oturumToplami.dogru += satir.dogru;
       oturumToplami.yanlis += satir.yanlis;
+      oturumToplami.soru += satir.soru;
       mevcut.oturumlar.set(oturum, oturumToplami);
       mevcut.soru += satir.soru;
       mevcut.dogru += satir.dogru;
@@ -811,7 +817,7 @@ export function kazanimlariEslestir(
         soru: satir.soru,
         dogru: satir.dogru,
         yanlis: satir.yanlis,
-        oturumlar: new Map([[oturum, { dogru: satir.dogru, yanlis: satir.yanlis }]]),
+        oturumlar: new Map([[oturum, { dogru: satir.dogru, yanlis: satir.yanlis, soru: satir.soru }]]),
       });
     }
   }
@@ -835,6 +841,12 @@ export function kazanimlariEslestir(
         herDenemedeYanlis: gorulen >= esik && yanlisDeneme === gorulen,
         sonDenemedeVar: Boolean(sonOturum),
         sonDenemedeYanlis: Boolean(sonOturum && sonOturum.dogru === 0 && sonOturum.yanlis > 0),
+        sonDenemeBos: sonOturum
+          ? Math.max(0, sonOturum.soru - sonOturum.dogru - sonOturum.yanlis)
+          : 0,
+        sonDenemedeBos: Boolean(
+          sonOturum && sonOturum.soru - sonOturum.dogru - sonOturum.yanlis > 0,
+        ),
         oncekiYanlisDeneme,
         basariYuzde: kayit.soru > 0 ? (kayit.dogru / kayit.soru) * 100 : 0,
       };

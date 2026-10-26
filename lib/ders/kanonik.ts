@@ -1,4 +1,4 @@
-import { normalizeKey, resolveDersGrubu } from "@/lib/pdf/parseUtils";
+import { isDersGrubuAdi, normalizeKey, resolveDersGrubu } from "@/lib/pdf/parseUtils";
 import { SINAV_GRUP_SET } from "@/lib/sinav";
 
 /**
@@ -208,11 +208,20 @@ export interface KanonikDersSatiri {
   kurumOrt: number | null;
 }
 
+/** TYT Türkçe / T. MAT / AYT Matematik gibi bölüm toplamı; MAT-2 alt ders değildir. */
+function grupToplamSatiriMi(ders: { dersAdi: string; dersGrubu: string; isGrup: boolean }): boolean {
+  if (!ders.isGrup) return false;
+  const anahtar = dersAnahtari(ders.dersAdi);
+  if (isDersGrubuAdi(ders.dersAdi) || BOLUM_ADLARI.has(anahtar)) return true;
+  if (normalizeKey(ders.dersAdi) === normalizeKey(ders.dersGrubu)) return true;
+  return anahtar === "tmat" || anahtar === "turkce" || anahtar === "sosyal" || anahtar === "fen";
+}
+
 /** Bir denemedeki ders satirlarini tek listede toplar. TYT geometri matematikten ayri kalir. */
 export function tekDenemeDersleri(dersler: HamDersSatiri[]): KanonikDersSatiri[] {
   const altDersGruplari = new Set<string>();
   for (const ders of dersler) {
-    if (ders.isGrup) continue;
+    if (grupToplamSatiriMi(ders)) continue;
     const hamAd = kanonikDersAdi(ders.dersAdi);
     if (!hamAd) continue;
     const ad = tytMatematikParcasi(ders, hamAd);
@@ -250,7 +259,7 @@ export function tekDenemeDersleri(dersler: HamDersSatiri[]): KanonikDersSatiri[]
   for (const ders of dersler) {
     const hamAd = kanonikDersAdi(ders.dersAdi);
     if (!hamAd) continue;
-    if (ders.isGrup && altDersGruplari.has(ders.dersGrubu)) continue;
+    if (grupToplamSatiriMi(ders) && altDersGruplari.has(ders.dersGrubu)) continue;
     ekle(ders, tytMatematikParcasi(ders, hamAd));
   }
 

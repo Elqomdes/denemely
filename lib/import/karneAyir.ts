@@ -55,11 +55,13 @@ function bosRanks(): ParsedRanks {
 
 function ogrenciyiAyir(ogrenci: ParsedStudentPage, tur: SinavTuru): ParsedStudentPage | null {
   const kume = grupKumesi(tur);
-  const dersler = ogrenci.dersler.filter((d) => {
-    if (!kume.has(d.dersGrubu)) return false;
-    if (tur === "AYT" && d.dogru === 0 && d.yanlis === 0) return false;
-    return true;
-  });
+  let dersler = ogrenci.dersler.filter((d) => kume.has(d.dersGrubu));
+  if (tur === "AYT") {
+    const alinanGruplar = new Set(
+      dersler.filter((d) => d.dogru > 0 || d.yanlis > 0).map((d) => d.dersGrubu),
+    );
+    dersler = dersler.filter((d) => alinanGruplar.has(d.dersGrubu));
+  }
   if (dersler.length === 0) return null;
 
   const alan = tur === "TYT" ? "TYT" : aytAlaniniSec(dersler);
@@ -74,8 +76,12 @@ function ogrenciyiAyir(ogrenci: ParsedStudentPage, tur: SinavTuru): ParsedStuden
     katilimlar: tur === "TYT" ? ogrenci.katilimlar : bosRanks(),
     toplam: gruplardanToplam(dersler),
     dersler,
-    kazanimlar: ogrenci.kazanimlar.filter((k) => kume.has(k.dersGrubu)),
-    cevaplar: ogrenci.cevaplar.filter((c) => kume.has(c.dersGrubu)),
+    kazanimlar: ogrenci.kazanimlar.filter(
+      (k) => kume.has(k.dersGrubu) && dersler.some((d) => d.dersGrubu === k.dersGrubu),
+    ),
+    cevaplar: ogrenci.cevaplar.filter(
+      (c) => kume.has(c.dersGrubu) && dersler.some((d) => d.dersGrubu === c.dersGrubu),
+    ),
   };
 }
 

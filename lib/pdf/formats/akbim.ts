@@ -5,7 +5,7 @@
  * cevap anahtarı ile öğrenci cevabı alt alta, kazanımlar üç sütun.
  * Soru sayısı > 0 olan TYT ve AYT kolonları alınır.
  */
-import { AYT_GRUP_SET, SINAV_GRUP_SET, TYT_GRUP_SET } from "@/lib/sinav";
+import { SINAV_GRUP_SET, TYT_GRUP_SET } from "@/lib/sinav";
 import type { PdfLine, PdfPage, PdfToken } from "../extract";
 import {
   grupSatirlariniTamamla,
@@ -198,7 +198,6 @@ function parseDersTablosu(lines: PdfLine[], uyarilar: string[]) {
 
     const dogru = dogrular.get(kolon.ad) ?? 0;
     const yanlis = yanlislar.get(kolon.ad) ?? 0;
-    if (AYT_GRUP_SET.has(grup) && dogru === 0 && yanlis === 0) continue;
     const bos = boslar.get(kolon.ad) ?? Math.max(0, soru - dogru - yanlis);
     const net = netler.get(kolon.ad) ?? hesaplaNet(dogru, yanlis);
 

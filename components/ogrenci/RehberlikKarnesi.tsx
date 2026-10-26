@@ -269,6 +269,14 @@ export function RehberlikKarnesi({
   const bosDersler = sonDersler
     .filter((ders) => ders.bos > 0)
     .sort((a, b) => b.bos - a.bos || dersSiraNo(a.dersAdi) - dersSiraNo(b.dersAdi));
+  const bosKazanimlar = kazanimlar
+    .filter((kazanim) => kazanim.sonDenemeBos > 0)
+    .sort(
+      (a, b) =>
+        b.sonDenemeBos - a.sonDenemeBos ||
+        dersSiraNo(a.dersAdi) - dersSiraNo(b.dersAdi) ||
+        a.kazanim.localeCompare(b.kazanim, "tr"),
+    );
 
   const yapilacak: string[] = [];
   if (hala.length > 0) {
@@ -398,13 +406,20 @@ export function RehberlikKarnesi({
 
       <section className="karne-renk mt-4 break-inside-avoid rounded-lg border border-sky-200 bg-sky-50 px-4 py-3">
         <h2 className="text-[14px] font-semibold text-sky-950">Boş fırsatı</h2>
-        {bosFirsati > 0 ? (
+        {bosFirsati > 0 || bosKazanimlar.length > 0 ? (
           <>
-            <p className="mt-1 text-[13px] leading-6 text-slate-700">
-              Son denemede {tamSayi(bosFirsati)} soruyu boş bıraktın. Boş 0 net, yanlış −0,25 net;
-              emin olduğun boşları doldurmak yanlıştan daha ucuz kazandırır. Hepsi doğru olsaydı
-              netin {net(sonDeneme.toplamNet + bosFirsati)} olurdu.
-            </p>
+            {bosFirsati > 0 ? (
+              <p className="mt-1 text-[13px] leading-6 text-slate-700">
+                Son denemede {tamSayi(bosFirsati)} soruyu boş bıraktın. Boş 0 net, yanlış −0,25 net;
+                emin olduğun boşları doldurmak yanlıştan daha ucuz kazandırır. Hepsi doğru olsaydı
+                netin {net(sonDeneme.toplamNet + bosFirsati)} olurdu.
+              </p>
+            ) : (
+              <p className="mt-1 text-[13px] leading-6 text-slate-700">
+                Son denemede boş bıraktığın kazanımlar aşağıda. Emin olduğun boşları doldurmak
+                yanlıştan daha ucuz kazandırır.
+              </p>
+            )}
             {bosDersler.length > 0 ? (
               <table className="mt-2 w-full border-collapse text-[13px]">
                 <thead>
@@ -428,6 +443,29 @@ export function RehberlikKarnesi({
                   ))}
                 </tbody>
               </table>
+            ) : null}
+            {bosKazanimlar.length > 0 ? (
+              <div className="mt-3">
+                <p className="text-[12px] font-medium text-sky-900">Boş bıraktığın kazanımlar</p>
+                {konulariDerslereAyir(bosKazanimlar).map((grup) => (
+                  <div key={grup.dersAdi} className="mt-2">
+                    <p className="text-[12px] font-semibold text-slate-800">{grup.dersAdi}</p>
+                    <ul className="mt-0.5 divide-y divide-sky-100">
+                      {grup.konular.map((konu) => (
+                        <li
+                          key={`${konu.dersGrubu}-${konu.kazanim}`}
+                          className="flex items-baseline justify-between gap-3 py-1.5 text-[13px]"
+                        >
+                          <span className="font-medium text-slate-950">{konu.kazanim}</span>
+                          <span className="shrink-0 tabular text-sky-950">
+                            {tamSayi(konu.sonDenemeBos)} boş
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
             ) : null}
           </>
         ) : (
