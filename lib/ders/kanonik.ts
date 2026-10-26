@@ -79,6 +79,8 @@ const TAKMA_ADLAR: Record<string, string> = {
   sosyoloji: "Sosyoloji",
   mantik: "Mantık",
   matematik2: "Matematik",
+  mat2: "Matematik",
+  amat: "Matematik",
   aytmatematik: "Matematik",
   geo2: "Geometri",
   geometri2: "Geometri",
@@ -154,7 +156,9 @@ export function kanonikDersAdi(hamAd: string): string | null {
   if (anahtar.includes("felsefe") || anahtar.startsWith("fel")) return "Felsefe";
   if (anahtar.includes("din")) return "Din";
   if (anahtar.includes("geo")) return "Geometri";
-  if (anahtar.includes("matematik") || anahtar.includes("tmat")) return "Matematik";
+  if (anahtar.includes("matematik") || anahtar.includes("tmat") || anahtar === "mat2" || anahtar === "amat") {
+    return "Matematik";
+  }
   if (anahtar.includes("fizik") || anahtar.startsWith("fiz")) return "Fizik";
   if (anahtar.includes("kimya") || anahtar.startsWith("kim")) return "Kimya";
   if (anahtar.includes("biyoloji") || anahtar.startsWith("biy")) return "Biyoloji";

@@ -1,7 +1,8 @@
 import { Logo } from "@/components/Marka";
-import { kazanimGelisimDurumu, type EslesenKazanim } from "@/lib/analiz";
+import { grupKisaAdi, kazanimGelisimDurumu, type EslesenKazanim } from "@/lib/analiz";
 import { dersSiraNo } from "@/lib/ders/kanonik";
-import { kisaTarih, net, tamSayi } from "@/lib/format";
+import { kisaTarih, net, puan, tamSayi } from "@/lib/format";
+import { mevcutGrupSirasi } from "@/lib/sinav";
 
 type DersToplam = {
   dersAdi: string;
@@ -258,6 +259,17 @@ export function RehberlikKarnesi({
     .filter(Boolean)
     .join(" · ");
 
+  const bolumler = mevcutGrupSirasi(
+    sinavTuru,
+    denemeler.flatMap((deneme) => Object.keys(deneme.grupNetleri)),
+  );
+  const puanVar = denemeler.some((deneme) => deneme.puan !== null);
+  const enZayif = [...dersSatirlari].sort((a, b) => a.basariYuzde - b.basariYuzde)[0];
+  const bosFirsati = sonDeneme.toplamBos;
+  const bosDersler = sonDersler
+    .filter((ders) => ders.bos > 0)
+    .sort((a, b) => b.bos - a.bos || dersSiraNo(a.dersAdi) - dersSiraNo(b.dersAdi));
+
   const yapilacak: string[] = [];
   if (hala.length > 0) {
     yapilacak.push(
@@ -272,6 +284,16 @@ export function RehberlikKarnesi({
   if (duzeldi.length > 0) {
     yapilacak.push(
       `Yeşil listedeki ${tamSayi(duzeldi.length)} konu düzeldi. Bunları bırakma.`,
+    );
+  }
+  if (enZayif && enZayif.basariYuzde < 50) {
+    yapilacak.push(
+      `En açık dersin ${enZayif.dersAdi} (ortalama ${net(enZayif.net)} net). Çalışma planına bunu öne al.`,
+    );
+  }
+  if (bosFirsati > 0) {
+    yapilacak.push(
+      `Son denemede ${tamSayi(bosFirsati)} soru boş. Boşları doldurmak yanlıştan daha ucuz net kazandırır.`,
     );
   }
   if (yapilacak.length === 0) {
@@ -323,6 +345,11 @@ export function RehberlikKarnesi({
               ? `Ortalamandan ${net(sonOrtFark)} net daha iyi`
               : `Ortalamanın ${net(Math.abs(sonOrtFark))} net gerisinde`}
           </p>
+          <p className="mt-1 text-[12px] text-slate-500">
+            {tamSayi(sonDeneme.toplamDogru)} doğru · {tamSayi(sonDeneme.toplamYanlis)} yanlış ·{" "}
+            {tamSayi(sonDeneme.toplamBos)} boş
+            {sonDeneme.puan !== null ? ` · ${puan(sonDeneme.puan)} puan` : ""}
+          </p>
         </div>
         <div className="karne-renk rounded-lg border border-slate-200 px-4 py-3">
           <p className="text-[12px] text-slate-500">Tüm denemelerinin ortalaması</p>
@@ -367,6 +394,47 @@ export function RehberlikKarnesi({
             })}
           </tbody>
         </table>
+      </section>
+
+      <section className="karne-renk mt-4 break-inside-avoid rounded-lg border border-sky-200 bg-sky-50 px-4 py-3">
+        <h2 className="text-[14px] font-semibold text-sky-950">Boş fırsatı</h2>
+        {bosFirsati > 0 ? (
+          <>
+            <p className="mt-1 text-[13px] leading-6 text-slate-700">
+              Son denemede {tamSayi(bosFirsati)} soruyu boş bıraktın. Boş 0 net, yanlış −0,25 net;
+              emin olduğun boşları doldurmak yanlıştan daha ucuz kazandırır. Hepsi doğru olsaydı
+              netin {net(sonDeneme.toplamNet + bosFirsati)} olurdu.
+            </p>
+            {bosDersler.length > 0 ? (
+              <table className="mt-2 w-full border-collapse text-[13px]">
+                <thead>
+                  <tr className="border-b border-sky-200 text-left text-[12px] text-sky-800">
+                    <th className="py-1.5 font-medium">Ders</th>
+                    <th className="py-1.5 text-right font-medium">Boş</th>
+                    <th className="py-1.5 text-right font-medium">Doğru / yanlış</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bosDersler.map((ders) => (
+                    <tr key={ders.dersAdi} className="border-b border-sky-100">
+                      <td className="py-1.5 font-medium text-slate-900">{ders.dersAdi}</td>
+                      <td className="py-1.5 text-right tabular font-semibold text-sky-950">
+                        {tamSayi(ders.bos)}
+                      </td>
+                      <td className="py-1.5 text-right tabular text-slate-600">
+                        {tamSayi(ders.dogru)} / {tamSayi(ders.yanlis)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : null}
+          </>
+        ) : (
+          <p className="mt-1 text-[13px] leading-6 text-slate-700">
+            Son denemede boşun yok. Net artışı için yanlışları azaltmaya odaklan.
+          </p>
+        )}
       </section>
 
       <div className="mt-4 space-y-3">
@@ -415,7 +483,13 @@ export function RehberlikKarnesi({
             <tr className="border-b border-slate-200 text-left text-[12px] text-slate-500">
               <th className="py-1.5 font-medium">Deneme</th>
               <th className="py-1.5 font-medium">Tarih</th>
+              {bolumler.map((grup) => (
+                <th key={grup} className="py-1.5 text-right font-medium">
+                  {grupKisaAdi(grup)}
+                </th>
+              ))}
               <th className="py-1.5 text-right font-medium">Net</th>
+              {puanVar ? <th className="py-1.5 text-right font-medium">Puan</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -423,7 +497,15 @@ export function RehberlikKarnesi({
               <tr key={deneme.id} className="border-b border-slate-100">
                 <td className="py-1.5 font-medium text-slate-900">{deneme.ad}</td>
                 <td className="py-1.5 text-slate-600">{kisaTarih(deneme.tarih)}</td>
+                {bolumler.map((grup) => (
+                  <td key={grup} className="py-1.5 text-right tabular text-slate-600">
+                    {deneme.grupNetleri[grup] == null ? "—" : net(deneme.grupNetleri[grup])}
+                  </td>
+                ))}
                 <td className="py-1.5 text-right font-semibold tabular">{net(deneme.toplamNet)}</td>
+                {puanVar ? (
+                  <td className="py-1.5 text-right tabular text-slate-600">{puan(deneme.puan)}</td>
+                ) : null}
               </tr>
             ))}
           </tbody>
