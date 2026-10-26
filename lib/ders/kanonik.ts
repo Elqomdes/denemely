@@ -1,4 +1,5 @@
 import { normalizeKey, resolveDersGrubu } from "@/lib/pdf/parseUtils";
+import { SINAV_GRUP_SET } from "@/lib/sinav";
 
 /**
  * TYT'nin tek ders listesi. Farkli yayinlar ayni dersi baska yazar
@@ -61,14 +62,30 @@ const TAKMA_ADLAR: Record<string, string> = {
   turkdilipeedebiyati: "Edebiyat",
   turkdilipeedebiyat: "Edebiyat",
   tde: "Edebiyat",
+  edeb: "Edebiyat",
   tarih2: "Tarih-2",
   tar2: "Tarih-2",
+  tarih3: "Tarih-3",
+  tar3: "Tarih-3",
   cografya2: "Coğrafya-2",
   cog2: "Coğrafya-2",
+  cografya3: "Coğrafya-3",
+  cog3: "Coğrafya-3",
   felsefegrubu: "Felsefe Grubu",
   fel2: "Felsefe Grubu",
+  psiko: "Psikoloji",
+  psikoloji: "Psikoloji",
+  sosyo: "Sosyoloji",
+  sosyoloji: "Sosyoloji",
+  mantik: "Mantık",
   matematik2: "Matematik",
   aytmatematik: "Matematik",
+  geo2: "Geometri",
+  geometri2: "Geometri",
+  ydil: "Yabancı Dil",
+  yabancidil: "Yabancı Dil",
+  dinsfel: "Din",
+  sfel: "Din",
   fizik2: "Fizik",
   fiz2: "Fizik",
   kimya2: "Kimya",
@@ -95,7 +112,13 @@ const DERS_SIRASI = [
   "Edebiyat",
   "Tarih-2",
   "Coğrafya-2",
+  "Tarih-3",
+  "Coğrafya-3",
   "Felsefe Grubu",
+  "Psikoloji",
+  "Sosyoloji",
+  "Mantık",
+  "Yabancı Dil",
 ];
 
 export function dersSiraNo(dersAdi: string): number {
@@ -115,11 +138,17 @@ export function kanonikDersAdi(hamAd: string): string | null {
   const dogrudan = TAKMA_ADLAR[anahtar];
   if (dogrudan) return dogrudan;
 
-  if (anahtar.includes("edebiyat") || anahtar === "tde") return "Edebiyat";
+  if (anahtar.includes("edebiyat") || anahtar === "tde" || anahtar === "edeb") return "Edebiyat";
   if (anahtar.includes("turkce")) return "Türkçe";
+  if (anahtar.includes("tarih3") || anahtar === "tar3") return "Tarih-3";
   if (anahtar.includes("tarih2") || anahtar === "tar2") return "Tarih-2";
+  if (anahtar.includes("cografya3") || anahtar === "cog3") return "Coğrafya-3";
   if (anahtar.includes("cografya2") || anahtar === "cog2") return "Coğrafya-2";
   if (anahtar.includes("felsefegrubu")) return "Felsefe Grubu";
+  if (anahtar.includes("psiko")) return "Psikoloji";
+  if (anahtar.includes("sosyo")) return "Sosyoloji";
+  if (anahtar.includes("mantik")) return "Mantık";
+  if (anahtar.includes("ydil") || anahtar.includes("yabancidil")) return "Yabancı Dil";
   if (anahtar.includes("tarih") || anahtar.startsWith("tar")) return "Tarih";
   if (anahtar.includes("cograf") || anahtar.startsWith("cog")) return "Coğrafya";
   if (anahtar.includes("felsefe") || anahtar.startsWith("fel")) return "Felsefe";
@@ -182,12 +211,13 @@ export function tekDenemeDersleri(dersler: HamDersSatiri[]): KanonikDersSatiri[]
     if (ders.isGrup) continue;
     const hamAd = kanonikDersAdi(ders.dersAdi);
     if (!hamAd) continue;
-    altDersGruplari.add(resolveDersGrubu(tytMatematikParcasi(ders, hamAd)));
+    const ad = tytMatematikParcasi(ders, hamAd);
+    altDersGruplari.add(SINAV_GRUP_SET.has(ders.dersGrubu) ? ders.dersGrubu : resolveDersGrubu(ad));
   }
 
   const harita = new Map<string, KanonikDersSatiri>();
   const ekle = (ders: HamDersSatiri, ad: string) => {
-    const dersGrubu = resolveDersGrubu(ad);
+    const dersGrubu = SINAV_GRUP_SET.has(ders.dersGrubu) ? ders.dersGrubu : resolveDersGrubu(ad);
     const mevcut = harita.get(ad);
     if (!mevcut) {
       harita.set(ad, {

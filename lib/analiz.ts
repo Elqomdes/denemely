@@ -30,6 +30,7 @@ export const GRUP_KISA_ADLARI: Record<string, string> = {
   "AYT Sosyal": "Sosyal",
   "AYT Matematik": "Matematik",
   "AYT Fen": "Fen",
+  "AYT Dil": "Dil",
 };
 
 export function grupKisaAdi(grup: string): string {

@@ -1,12 +1,14 @@
 import { kanonikDersAdi, tytMatematikParcasi } from "@/lib/ders/kanonik";
 import { prisma } from "@/lib/db";
+import { karneKarisikMi, sinavaGoreKarne } from "@/lib/import/karneAyir";
 import { resolveDersGrubu } from "@/lib/pdf/parseUtils";
 import { ogrenciCozumleVeyaOlustur } from "@/lib/ogrenci/eslestirme";
 import type { ParsedAnswerSheet, ParsedExamFile, ParsedSubject, ParsedTopic } from "@/lib/pdf/types";
-import { grupKumesi, parseSinavTuru } from "@/lib/sinav";
+import { grupKumesi, parseSinavTuru, SINAV_GRUP_SET } from "@/lib/sinav";
 
 export interface KayitSonucu {
   examId: string;
+  aytExamId?: string;
   eklenenOgrenci: number;
   kaydedilenSonuc: number;
 }
@@ -28,6 +30,22 @@ export interface KayitGirdisi {
  * yukleme kopya olusturmaz; TYT ve AYT ayni ad/tarihte ayri kalir.
  */
 export async function denemeyiKaydet(girdi: KayitGirdisi): Promise<KayitSonucu> {
+  if (karneKarisikMi(girdi.parsed)) {
+    const tyt = await denemeyiKaydetTek({ ...girdi, parsed: sinavaGoreKarne(girdi.parsed, "TYT"), sinavTuru: "TYT" });
+    const aytParsed = sinavaGoreKarne(girdi.parsed, "AYT");
+    if (aytParsed.ogrenciler.length === 0) return tyt;
+    const ayt = await denemeyiKaydetTek({ ...girdi, parsed: aytParsed, sinavTuru: "AYT" });
+    return {
+      examId: tyt.examId,
+      aytExamId: ayt.examId,
+      eklenenOgrenci: tyt.eklenenOgrenci + ayt.eklenenOgrenci,
+      kaydedilenSonuc: tyt.kaydedilenSonuc + ayt.kaydedilenSonuc,
+    };
+  }
+  return denemeyiKaydetTek(girdi);
+}
+
+async function denemeyiKaydetTek(girdi: KayitGirdisi): Promise<KayitSonucu> {
   const { institutionId, yukleyenId, parsed, denemeAdi, tarih, kaynakDosya } = girdi;
   const sinavTuru = parseSinavTuru(girdi.sinavTuru);
 
@@ -110,7 +128,7 @@ export async function denemeyiKaydet(girdi: KayitGirdisi): Promise<KayitSonucu> 
           {
             examResultId: sonuc.id,
             dersAdi,
-            dersGrubu: ders.isGrup ? ders.dersGrubu : resolveDersGrubu(dersAdi),
+            dersGrubu: SINAV_GRUP_SET.has(ders.dersGrubu) ? ders.dersGrubu : resolveDersGrubu(dersAdi),
             isGrup: ders.isGrup,
             soru: ders.soru,
             dogru: ders.dogru,
@@ -135,7 +153,7 @@ export async function denemeyiKaydet(girdi: KayitGirdisi): Promise<KayitSonucu> 
           {
             examResultId: sonuc.id,
             dersAdi,
-            dersGrubu: resolveDersGrubu(dersAdi),
+            dersGrubu: SINAV_GRUP_SET.has(kazanim.dersGrubu) ? kazanim.dersGrubu : resolveDersGrubu(dersAdi),
             kazanim: kazanim.kazanim,
             soru: kazanim.soru,
             dogru: kazanim.dogru,

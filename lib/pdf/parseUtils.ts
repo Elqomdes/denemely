@@ -55,28 +55,45 @@ const SUBJECT_GROUPS: Array<[string, string[]]> = [
   ["TYT Fen", ["Fizik", "Kimya", "Biyoloji", "FİZ-1", "KİM-1", "BİY-1"]],
   [
     "AYT Edebiyat",
-    ["Edebiyat", "Türk Dili ve Edebiyatı", "Türk Dili ve Edebiyat", "TDE", "EDE", "AYT Edebiyat"],
+    ["Edebiyat", "Türk Dili ve Edebiyatı", "Türk Dili ve Edebiyat", "TDE", "EDE", "EDEB", "AYT Edebiyat"],
   ],
   [
     "AYT Sosyal",
     [
       "Tarih-2",
       "TAR-2",
+      "Tarih-3",
+      "TAR-3",
       "Coğrafya-2",
       "COĞ-2",
       "COG-2",
+      "Coğrafya-3",
+      "COĞ-3",
+      "COG-3",
       "Felsefe Grubu",
       "FEL-2",
+      "PSİKO",
+      "Psikoloji",
+      "SOSYO",
+      "Sosyoloji",
+      "MANTIK",
+      "Mantık",
+      "DİN / S.FEL",
+      "S.FEL",
       "AYT Sosyal",
       "AYT Tarih-1",
       "AYT Coğrafya-1",
     ],
   ],
-  ["AYT Matematik", ["AYT Matematik", "Matematik-2", "MAT-2", "A. MAT", "AMAT", "AYT MAT"]],
+  [
+    "AYT Matematik",
+    ["AYT Matematik", "Matematik-2", "MAT-2", "A. MAT", "AMAT", "AYT MAT", "GEO-2", "Geometri-2"],
+  ],
   [
     "AYT Fen",
     ["AYT Fen", "Fizik-2", "FİZ-2", "Kimya-2", "KİM-2", "Biyoloji-2", "BİY-2", "FİZİK-2", "KİMYA-2"],
   ],
+  ["AYT Dil", ["AYT Dil", "Y. DİL", "Y.DİL", "Yabancı Dil", "Y.Dil"]],
 ];
 for (const [group, subjects] of SUBJECT_GROUPS) {
   for (const subject of subjects) GROUP_BY_SUBJECT[normalizeKey(subject)] = group;
@@ -95,10 +112,17 @@ export function resolveDersGrubu(dersAdi: string, fallback?: string | null): str
     if (normalizeKey(group) === key) return group;
   }
 
-  if (/edebiyat|turkdili|tde/.test(key)) return "AYT Edebiyat";
-  if (/matematik2|mat2|aytmat/.test(key)) return "AYT Matematik";
+  if (/edebiyat|turkdili|tde|^edeb$|^ede$/.test(key)) return "AYT Edebiyat";
+  if (/matematik2|mat2|aytmat|geo2|geometri2/.test(key)) return "AYT Matematik";
   if (/fizik2|fiz2|kimya2|kim2|biyoloji2|biy2|aytfen/.test(key)) return "AYT Fen";
-  if (/tarih2|tar2|cografya2|cog2|felsefegrubu|fel2|aytsosyal/.test(key)) return "AYT Sosyal";
+  if (
+    /tarih2|tar2|tarih3|tar3|cografya2|cog2|cografya3|cog3|felsefegrubu|fel2|aytsosyal|psiko|sosyo|mantik|dinsfel|sfel/.test(
+      key,
+    )
+  ) {
+    return "AYT Sosyal";
+  }
+  if (/ydil|yabancidil/.test(key)) return "AYT Dil";
   if (/^ayt/.test(key) && /mat/.test(key)) return "AYT Matematik";
   if (/^ayt/.test(key) && /fen|fiz|kim|biy/.test(key)) return "AYT Fen";
   if (/^ayt/.test(key) && /sosyal|tarih|cograf|fel/.test(key)) return "AYT Sosyal";
@@ -224,4 +248,53 @@ export function normalizeGroupFlags(
     if (uyeler.some((d) => d.isGrup)) continue;
     if (uyeler.length === 1) uyeler[0].isGrup = true;
   }
+}
+
+/** MAT-2 + GEO-2 gibi alt dersleri olan gruplara toplam satiri ekler. */
+export function grupSatirlariniTamamla<
+  T extends {
+    dersAdi: string;
+    dersGrubu: string;
+    isGrup: boolean;
+    soru: number;
+    dogru: number;
+    yanlis: number;
+    bos: number;
+    net: number;
+    basariYuzde: number | null;
+    sinifOrt: number | null;
+    kurumOrt: number | null;
+    genelOrt: number | null;
+  },
+>(dersler: T[]): T[] {
+  normalizeGroupFlags(dersler);
+  const eklenecek: T[] = [];
+  const gruplar = new Set(dersler.map((d) => d.dersGrubu));
+  for (const grup of gruplar) {
+    const uyeler = dersler.filter((d) => d.dersGrubu === grup);
+    if (uyeler.some((d) => d.isGrup)) continue;
+    if (uyeler.length < 2) continue;
+    const soru = uyeler.reduce((s, d) => s + d.soru, 0);
+    const dogru = uyeler.reduce((s, d) => s + d.dogru, 0);
+    const yanlis = uyeler.reduce((s, d) => s + d.yanlis, 0);
+    const bos = uyeler.reduce((s, d) => s + d.bos, 0);
+    const net = Math.round(uyeler.reduce((s, d) => s + d.net, 0) * 100) / 100;
+    eklenecek.push({
+      ...uyeler[0],
+      dersAdi: grup,
+      dersGrubu: grup,
+      isGrup: true,
+      soru,
+      dogru,
+      yanlis,
+      bos,
+      net,
+      basariYuzde: soru > 0 ? Math.round((net / soru) * 1000) / 10 : null,
+      sinifOrt: null,
+      kurumOrt: null,
+      genelOrt: null,
+    });
+  }
+  dersler.push(...eklenecek);
+  return dersler;
 }

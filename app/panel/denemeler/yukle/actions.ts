@@ -121,6 +121,7 @@ export async function denemeOnayla(
   }
 
   let examId: string;
+  let aytExamId: string | undefined;
   try {
     const sonuc = await denemeyiKaydet({
       institutionId: kurum.id,
@@ -132,6 +133,7 @@ export async function denemeOnayla(
       kaynakDosya: asama.dosyaAdi,
     });
     examId = sonuc.examId;
+    aytExamId = sonuc.aytExamId;
   } catch (error) {
     console.error("Deneme kaydetme hatasi:", error);
     return { hata: "Sonuçlar kaydedilirken bir sorun oluştu. Lütfen tekrar deneyin." };
@@ -143,6 +145,9 @@ export async function denemeOnayla(
   revalidatePath("/panel/denemeler");
   revalidatePath("/panel/ogrenciler");
 
+  if (aytExamId) {
+    redirect("/panel/denemeler?durum=kaydedildi&sinav=TYT");
+  }
   redirect(`/panel/denemeler/${examId}?durum=kaydedildi`);
 }
 

@@ -2,7 +2,7 @@ export const SINAV_TURLERI = ["TYT", "AYT"] as const;
 export type SinavTuru = (typeof SINAV_TURLERI)[number];
 
 export const TYT_GRUP_SIRASI = ["TYT Türkçe", "TYT Sosyal", "TYT Matematik", "TYT Fen"] as const;
-export const AYT_GRUP_SIRASI = ["AYT Edebiyat", "AYT Sosyal", "AYT Matematik", "AYT Fen"] as const;
+export const AYT_GRUP_SIRASI = ["AYT Edebiyat", "AYT Sosyal", "AYT Matematik", "AYT Fen", "AYT Dil"] as const;
 
 export const TYT_GRUP_SET = new Set<string>(TYT_GRUP_SIRASI);
 export const AYT_GRUP_SET = new Set<string>(AYT_GRUP_SIRASI);
@@ -33,6 +33,12 @@ export function mevcutGrupSirasi(tur: string, gruplar: Iterable<string>): string
     .filter((grup) => !tercih.includes(grup))
     .sort((a, b) => a.localeCompare(b, "tr"));
   return [...sirali, ...diger];
+}
+
+export function dersGrubuSinavTuru(grup: string): SinavTuru | null {
+  if (TYT_GRUP_SET.has(grup)) return "TYT";
+  if (AYT_GRUP_SET.has(grup)) return "AYT";
+  return null;
 }
 
 export function sinavQuery(tur: SinavTuru, extra?: Record<string, string | undefined>): string {

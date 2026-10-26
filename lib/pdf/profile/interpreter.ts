@@ -3,6 +3,7 @@ import type { PdfLine, PdfPage, PdfToken } from "../extract";
 import {
   alignToRuler,
   buildRuler,
+  grupSatirlariniTamamla,
   hesaplaNet,
   isDersGrubuAdi,
   isKeyToken,
@@ -47,6 +48,7 @@ export function parseProfilSayfasi(page: PdfPage, profil: FormatProfile): Parsed
   }
   dersler = sinavDersleri(dersler);
   normalizeGroupFlags(dersler);
+  grupSatirlariniTamamla(dersler);
   if (dersler.length === 0) uyarilar.push("Ders satırları okunamadı.");
   if (!toplam) toplam = gruplardanToplam(dersler);
 
@@ -798,7 +800,7 @@ function etiketVeSayilar(tokens: PdfToken[]) {
 
 function kazanimBasligiMi(raw: string): boolean {
   const key = raw.replace(/\s+/g, "").toLocaleUpperCase("tr");
-  return /^(TÜRKÇE|TURKCE|SOSYAL|T\.?MAT|GEO-?1|TAR-?1|COĞ-?1|COG-?1|FEL-?1|DİN-?1|DIN-?1|FİZ-?1|FIZ-?1|KİM-?1|KIM-?1|BİY-?1|BIY-?1|MATEMATİK|MATEMATIK|FİZİK|FIZIK|KİMYA|KIMYA|BİYOLOJİ|BIYOLOJI|TARİH|TARIH|COĞRAFYA|COGRAFYA|FELSEFE|DİN)/.test(
+  return /^(TÜRKÇE|TURKCE|SOSYAL|T\.?MAT|GEO-?[12]|TAR-?[123]|COĞ-?[123]|COG-?[123]|FEL-?[12]|DİN-?1|DIN-?1|FİZ-?[12]|FIZ-?[12]|KİM-?[12]|KIM-?[12]|BİY-?[12]|BIY-?[12]|MAT-?2|EDEB|EDEBIYAT|PSİKO|PSIKO|SOSYO|MANTIK|MATEMATİK|MATEMATIK|FİZİK|FIZIK|KİMYA|KIMYA|BİYOLOJİ|BIYOLOJI|TARİH|TARIH|COĞRAFYA|COGRAFYA|FELSEFE|DİN)/.test(
     key,
   );
 }

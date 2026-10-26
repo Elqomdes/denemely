@@ -25,7 +25,11 @@ export const DERS_GRUPLARI = [
   "AYT Sosyal",
   "AYT Matematik",
   "AYT Fen",
+  "AYT Dil",
 ] as const;
+
+export const ALAN_PUANLARI = ["TYT", "SAY", "SÖZ", "EA", "DİL"] as const;
+export type AlanPuani = (typeof ALAN_PUANLARI)[number];
 
 export type DersGrubu = (typeof DERS_GRUPLARI)[number];
 
@@ -98,6 +102,10 @@ export interface ParsedStudentPage {
   ogrenciNo: string | null;
   sinif: string | null;
   puan: number | null;
+  /** Karisik karnelerde TYT / SAY / SÖZ / EA / DİL puanlari */
+  alanPuanlari?: Partial<Record<AlanPuani, number>>;
+  /** Ayni kolonlara hizalanmis Turkiye/il/kurum siralari */
+  alanSiralar?: Partial<Record<AlanPuani, ParsedRanks>>;
   /** Format 1: genel puan ortalamasi */
   genelOrtalamaPuan: number | null;
   /** Format 2: yuzdelik dilim */

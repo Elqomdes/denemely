@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { ogrencileriCozumle } from "@/lib/ogrenci/eslestirme";
 import { normalizePersonName } from "@/lib/pdf/parseUtils";
 import type { ParsedExamFile, ParsedStudentPage } from "@/lib/pdf/types";
+import { AYT_GRUP_SET, TYT_GRUP_SET } from "@/lib/sinav";
 
 export type EslesmeDurumu = "mevcut" | "takma-ad" | "yeni" | "kopya";
 
@@ -20,6 +21,8 @@ export interface OnizlemeSatiri {
   puan: number | null;
   net: number;
   dersGrubuSayisi: number;
+  tytBolum: number;
+  aytBolum: number;
   kazanimSayisi: number;
   uyarilar: string[];
 }
@@ -71,6 +74,8 @@ export async function onizlemeHazirla(
       puan: ogrenci.puan,
       net: ogrenci.toplam.net,
       dersGrubuSayisi: ogrenci.dersler.filter((d) => d.isGrup).length,
+      tytBolum: ogrenci.dersler.filter((d) => d.isGrup && TYT_GRUP_SET.has(d.dersGrubu)).length,
+      aytBolum: ogrenci.dersler.filter((d) => d.isGrup && AYT_GRUP_SET.has(d.dersGrubu)).length,
       kazanimSayisi: ogrenci.kazanimlar.length,
       uyarilar: ogrenci.uyarilar,
     };

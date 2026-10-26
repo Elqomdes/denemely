@@ -8,11 +8,13 @@ export function OnizlemeFormu({
   varsayilanAd,
   varsayilanTarih,
   ogrenciSayisi,
+  karisikKarne,
 }: {
   token: string;
   varsayilanAd: string;
   varsayilanTarih: string;
   ogrenciSayisi: number;
+  karisikKarne?: boolean;
 }) {
   const [durum, formAction, bekliyor] = useActionState<OnayDurumu, FormData>(denemeOnayla, {});
 
@@ -54,16 +56,28 @@ export function OnizlemeFormu({
         </div>
       </div>
 
-      <div className="max-w-xs">
-        <label htmlFor="sinavTuru" className="alan-etiketi">
-          Sınav türü
-        </label>
-        <select id="sinavTuru" name="sinavTuru" defaultValue="TYT" className="alan">
-          <option value="TYT">TYT</option>
-          <option value="AYT">AYT</option>
-        </select>
-        <p className="alan-ipucu">Öğrenci ve deneme listelerinde bu türe göre ayrı görünür.</p>
-      </div>
+      {karisikKarne ? (
+        <div className="uyari-serit border-sky-200 bg-sky-50 text-sky-900">
+          <p className="font-medium">Bu belgede TYT ve AYT birlikte var.</p>
+          <p className="mt-1">
+            Aynı deneme adı ve tarihle iki kayıt oluşur: TYT sonuçları TYT sekmesinde, AYT sonuçları
+            AYT sekmesinde durur. Sayısal / sözel / eşit ağırlık / dil puanı öğrencinin işaretlediği
+            teste göre yazılır.
+          </p>
+          <input type="hidden" name="sinavTuru" value="TYT" />
+        </div>
+      ) : (
+        <div className="max-w-xs">
+          <label htmlFor="sinavTuru" className="alan-etiketi">
+            Sınav türü
+          </label>
+          <select id="sinavTuru" name="sinavTuru" defaultValue="TYT" className="alan">
+            <option value="TYT">TYT</option>
+            <option value="AYT">AYT</option>
+          </select>
+          <p className="alan-ipucu">Öğrenci ve deneme listelerinde bu türe göre ayrı görünür.</p>
+        </div>
+      )}
 
       {durum.hata ? (
         <p role="alert" className="uyari-serit border-rose-200 bg-rose-50 text-rose-700">
@@ -73,7 +87,11 @@ export function OnizlemeFormu({
 
       <div className="flex flex-wrap items-center gap-3 border-t border-cerceve-soluk pt-4">
         <button type="submit" disabled={bekliyor} className="btn btn-birincil">
-          {bekliyor ? "Kaydediliyor…" : `${ogrenciSayisi} öğrenciyi kaydet`}
+          {bekliyor
+            ? "Kaydediliyor…"
+            : karisikKarne
+              ? `${ogrenciSayisi} öğrenciyi TYT ve AYT olarak kaydet`
+              : `${ogrenciSayisi} öğrenciyi kaydet`}
         </button>
         <p className="text-xs text-slate-500">
           Aynı ad, tarih ve sınav türünde bir deneme varsa sonuçları güncellenir, kopya oluşmaz.

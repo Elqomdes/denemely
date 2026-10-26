@@ -5,6 +5,7 @@ import { OlcutSerit, SayfaUstu } from "@/components/SayfaUstu";
 import { kurumOturumuGerekli } from "@/lib/auth/guards";
 import { net, puan, tamSayi, tarihInput } from "@/lib/format";
 import { onizlemeHazirla, varsayilanDenemeAdi } from "@/lib/import/eslestir";
+import { karneKarisikMi } from "@/lib/import/karneAyir";
 import { asamaOku } from "@/lib/import/staging";
 import { formatEtiketi } from "@/lib/pdf/types";
 import { yuklemeIptal } from "../actions";
@@ -40,6 +41,7 @@ export default async function OnizlemePage({ params }: { params: Promise<{ token
   const varsayilanAd = varsayilanDenemeAdi(asama.parsed, asama.dosyaAdi);
   const bugun = new Date();
   const onizleme = await onizlemeHazirla(kurum.id, asama.parsed, varsayilanAd, bugun);
+  const karisikKarne = karneKarisikMi(asama.parsed);
   const kazanimToplami = asama.parsed.ogrenciler.reduce((t, o) => t + o.kazanimlar.length, 0);
 
   return (
@@ -102,6 +104,7 @@ export default async function OnizlemePage({ params }: { params: Promise<{ token
           varsayilanAd={varsayilanAd}
           varsayilanTarih={tarihInput(bugun)}
           ogrenciSayisi={onizleme.satirlar.length}
+          karisikKarne={karisikKarne}
         />
       </Kart>
 
@@ -150,7 +153,11 @@ export default async function OnizlemePage({ params }: { params: Promise<{ token
                     </td>
                     <td className="sayi text-slate-700">{puan(satir.puan)}</td>
                     <td className="sayi font-semibold text-slate-900">{net(satir.net)}</td>
-                    <td className="sayi text-slate-600">{satir.dersGrubuSayisi}/4</td>
+                    <td className="sayi text-slate-600">
+                      {karisikKarne
+                        ? `${satir.tytBolum} TYT · ${satir.aytBolum} AYT`
+                        : `${satir.dersGrubuSayisi}/4`}
+                    </td>
                     <td className="sayi text-slate-600">{satir.kazanimSayisi}</td>
                   </tr>
                 );

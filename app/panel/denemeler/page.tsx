@@ -37,6 +37,11 @@ export default async function DenemelerSayfasi({
           Deneme ve bağlı sonuçları silindi.
         </p>
       ) : null}
+      {durum === "kaydedildi" ? (
+        <p className="uyari-serit border-emerald-200 bg-emerald-50 text-emerald-800">
+          Sonuçlar kaydedildi. TYT ve AYT sekmelerinden ayrı incelenir.
+        </p>
+      ) : null}
 
       {denemeler.length === 0 ? (
         <BosDurum

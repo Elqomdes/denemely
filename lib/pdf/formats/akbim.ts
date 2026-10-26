@@ -5,15 +5,16 @@
  * cevap anahtarı ile öğrenci cevabı alt alta, kazanımlar üç sütun.
  * Soru sayısı > 0 olan TYT ve AYT kolonları alınır.
  */
-import { SINAV_GRUP_SET } from "@/lib/sinav";
+import { AYT_GRUP_SET, SINAV_GRUP_SET, TYT_GRUP_SET } from "@/lib/sinav";
 import type { PdfLine, PdfPage, PdfToken } from "../extract";
 import {
+  grupSatirlariniTamamla,
   hesaplaNet,
-  normalizeGroupFlags,
   parseTrNumber,
   resolveDersGrubu,
 } from "../parseUtils";
 import type {
+  AlanPuani,
   ParsedAnswerSheet,
   ParsedRanks,
   ParsedStudentPage,
@@ -37,7 +38,9 @@ export function parseAkbimPage(page: PdfPage): ParsedStudentPage {
   const uyarilar: string[] = [];
   const kimlik = parseKimlik(page.lines, uyarilar);
   const { dersler, toplam } = parseDersTablosu(page.lines, uyarilar);
-  const { siralar, katilimlar } = parseDereceler(page.lines);
+  const alanBaslik = alanBasliklari(page.lines);
+  const alanPuanlari = parseAlanPuanlari(page.lines, alanBaslik);
+  const { siralar, katilimlar, alanSiralar } = parseDereceler(page.lines, alanBaslik);
   const kitapcik = parseKitapcik(page.lines);
   const cevaplar = parseCevaplar(page.lines, kitapcik, dersler, uyarilar);
   const kazanimlar = parseKazanimlar(page.lines);
@@ -52,7 +55,9 @@ export function parseAkbimPage(page: PdfPage): ParsedStudentPage {
     ogrenciAdi: kimlik.ogrenciAdi,
     ogrenciNo: kimlik.ogrenciNo,
     sinif: kimlik.sinif,
-    puan: parsePuan(page.lines),
+    puan: alanPuanlari.TYT ?? parsePuan(page.lines),
+    alanPuanlari,
+    alanSiralar,
     genelOrtalamaPuan: null,
     yuzdelikDilim: null,
     toplam,
@@ -193,13 +198,14 @@ function parseDersTablosu(lines: PdfLine[], uyarilar: string[]) {
 
     const dogru = dogrular.get(kolon.ad) ?? 0;
     const yanlis = yanlislar.get(kolon.ad) ?? 0;
+    if (AYT_GRUP_SET.has(grup) && dogru === 0 && yanlis === 0) continue;
     const bos = boslar.get(kolon.ad) ?? Math.max(0, soru - dogru - yanlis);
     const net = netler.get(kolon.ad) ?? hesaplaNet(dogru, yanlis);
 
     dersler.push({
       dersAdi: kolon.ad,
       dersGrubu: grup,
-      isGrup: true,
+      isGrup: false,
       soru,
       dogru,
       yanlis,
@@ -212,14 +218,17 @@ function parseDersTablosu(lines: PdfLine[], uyarilar: string[]) {
     });
   }
 
-  normalizeGroupFlags(dersler);
+  grupSatirlariniTamamla(dersler);
   if (dersler.length === 0) uyarilar.push("Ders kolonları okunamadı.");
 
-  const soru = dersler.reduce((s, d) => s + d.soru, 0);
-  const dogru = dersler.reduce((s, d) => s + d.dogru, 0);
-  const yanlis = dersler.reduce((s, d) => s + d.yanlis, 0);
-  const bos = dersler.reduce((s, d) => s + d.bos, 0);
-  const net = Math.round(dersler.reduce((s, d) => s + d.net, 0) * 100) / 100;
+  const tytGruplar = dersler.filter((d) => d.isGrup && TYT_GRUP_SET.has(d.dersGrubu));
+  const kaynak = tytGruplar.length > 0 ? tytGruplar : dersler.filter((d) => d.isGrup);
+  const ozetKaynak = kaynak.length > 0 ? kaynak : dersler;
+  const soru = ozetKaynak.reduce((s, d) => s + d.soru, 0);
+  const dogru = ozetKaynak.reduce((s, d) => s + d.dogru, 0);
+  const yanlis = ozetKaynak.reduce((s, d) => s + d.yanlis, 0);
+  const bos = ozetKaynak.reduce((s, d) => s + d.bos, 0);
+  const net = Math.round(ozetKaynak.reduce((s, d) => s + d.net, 0) * 100) / 100;
 
   return {
     dersler,
@@ -251,13 +260,98 @@ function enYakin(token: PdfToken, kolonlar: Array<{ ad: string; x: number }>) {
   return enIyiFark < 18 ? enIyi : null;
 }
 
-function parseDereceler(lines: PdfLine[]): { siralar: ParsedRanks; katilimlar: ParsedRanks } {
+function alanBasliklari(lines: PdfLine[]): Array<{ alan: AlanPuani; x: number }> | null {
+  const line = lines.find(
+    (l) =>
+      /\bTYT\b/i.test(l.text) &&
+      /\bSAY\b/i.test(l.text) &&
+      /\bEA\b/i.test(l.text) &&
+      l.top < 180,
+  );
+  if (!line) return null;
+  const basliklar: Array<{ alan: AlanPuani; x: number }> = [];
+  for (const token of line.tokens) {
+    const key = token.text.replace(/\s+/g, "").toLocaleUpperCase("tr");
+    const alan: AlanPuani | null =
+      key === "TYT"
+        ? "TYT"
+        : key === "SAY"
+          ? "SAY"
+          : key === "SÖZ" || key === "SOZ"
+            ? "SÖZ"
+            : key === "EA"
+              ? "EA"
+              : key === "DİL" || key === "DIL"
+                ? "DİL"
+                : null;
+    if (!alan) continue;
+    const x = (token.x + token.endX) / 2;
+    if (x > 270) continue;
+    basliklar.push({ alan, x });
+  }
+  return basliklar.length >= 3 ? basliklar : null;
+}
+
+function alanaYapistir(
+  line: PdfLine,
+  basliklar: Array<{ alan: AlanPuani; x: number }>,
+): Partial<Record<AlanPuani, number>> {
+  const sonuc: Partial<Record<AlanPuani, number>> = {};
+  for (const token of line.tokens) {
+    const value = parseTrNumber(token.text);
+    if (value === null) continue;
+    const merkez = (token.x + token.endX) / 2;
+    if (merkez > 270) continue;
+    let enIyi = basliklar[0];
+    let enIyiFark = Infinity;
+    for (const baslik of basliklar) {
+      const fark = Math.abs(baslik.x - merkez);
+      if (fark < enIyiFark) {
+        enIyi = baslik;
+        enIyiFark = fark;
+      }
+    }
+    if (enIyiFark < 28) sonuc[enIyi.alan] = value;
+  }
+  return sonuc;
+}
+
+function parseAlanPuanlari(
+  lines: PdfLine[],
+  basliklar: Array<{ alan: AlanPuani; x: number }> | null,
+): Partial<Record<AlanPuani, number>> {
+  if (!basliklar) return {};
+  const puanBaslik = lines.find((line) => /PUANLAR/i.test(line.text));
+  if (!puanBaslik) return {};
+  const sonraki = lines.find((line) => line.top > puanBaslik.top && line.top < puanBaslik.top + 20);
+  return sonraki ? alanaYapistir(sonraki, basliklar) : {};
+}
+
+function parseDereceler(
+  lines: PdfLine[],
+  basliklar: Array<{ alan: AlanPuani; x: number }> | null,
+): {
+  siralar: ParsedRanks;
+  katilimlar: ParsedRanks;
+  alanSiralar: Partial<Record<AlanPuani, ParsedRanks>>;
+} {
   const siralar = bosRanks();
   const katilimlar = bosRanks();
+  const alanSiralar: Partial<Record<AlanPuani, ParsedRanks>> = {};
 
   const oku = (desen: RegExp, alan: keyof ParsedRanks) => {
     const line = lines.find((l) => desen.test(l.text) && l.top > 170 && l.top < 240);
     if (!line) return;
+    if (basliklar) {
+      const hiza = alanaYapistir(line, basliklar);
+      for (const [ad, deger] of Object.entries(hiza) as Array<[AlanPuani, number]>) {
+        const mevcut = alanSiralar[ad] ?? bosRanks();
+        mevcut[alan] = deger;
+        alanSiralar[ad] = mevcut;
+      }
+      if (hiza.TYT != null) siralar[alan] = hiza.TYT;
+      return;
+    }
     const sayilar = line.tokens
       .map((t) => parseTrNumber(t.text))
       .filter((v): v is number => v !== null && v > 0);
@@ -271,7 +365,7 @@ function parseDereceler(lines: PdfLine[]): { siralar: ParsedRanks; katilimlar: P
   oku(/\bKURUM\b/i, "kurum");
   oku(/^ŞUBE\b/i, "sinif");
 
-  return { siralar, katilimlar };
+  return { siralar, katilimlar, alanSiralar };
 }
 
 function parseKitapcik(lines: PdfLine[]): string | null {
@@ -494,7 +588,7 @@ function etiketVeSayilar(tokens: PdfToken[]) {
 
 function kazanimBasligiMi(raw: string): boolean {
   const key = raw.replace(/\s+/g, "").toLocaleUpperCase("tr");
-  return /^(TÜRKÇE|TURKCE|SOSYAL|T\.?MAT|GEO-?1|TAR-?1|COĞ-?1|COG-?1|FEL-?1|DİN-?1|DIN-?1|FİZ-?1|FIZ-?1|KİM-?1|KIM-?1|BİY-?1|BIY-?1)$/.test(
+  return /^(TÜRKÇE|TURKCE|SOSYAL|T\.?MAT|GEO-?[12]|TAR-?[123]|COĞ-?[123]|COG-?[123]|FEL-?[12]|DİN-?1|DIN-?1|FİZ-?[12]|FIZ-?[12]|KİM-?[12]|KIM-?[12]|BİY-?[12]|BIY-?[12]|MAT-?2|EDEB|EDEBIYAT|PSİKO|PSIKO|SOSYO|MANTIK)$/.test(
     key,
   );
 }

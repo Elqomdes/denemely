@@ -26,7 +26,7 @@ Görevin: verilen PDF sayfa dökümünden BELİRLEYİCİ bir FormatProfile JSON 
 Sayıları, adları veya netleri sen uydurmayacaksın. Yalnızca tokenların nerede durduğunu tarif edeceksin; kod bu haritayla PDF'ten okuyacak.
 
 Kurallar:
-- TYT grupları: Türkçe, Sosyal, Matematik, Fen. AYT grupları: Edebiyat, Sosyal, Matematik, Fen. Soru=0 kolonları yok sayılır.
+- TYT grupları: Türkçe, Sosyal, Matematik, Fen. AYT grupları: Edebiyat, Sosyal, Matematik, Fen, Dil. Soru=0 kolonları yok sayılır. Ortak karnede MAT-2 GEO-2 FİZ-2 KİM-2 BİY-2 EDEB TAR-2/3 COĞ-2/3 FEL-2 Y.DİL AYT kolonudur.
 - tespit.zorunlu: bu yayını diğerlerinden ayıran 2-5 benzersiz metin/regex. Genel "TYT" tek başına yetmez.
 - Regex'ler sayfada GÖRÜNEN metne uymalı. Geçersiz regex yazma.
 - Kullanılmayan metin alanlarını boş string, kullanılmayan indeksleri -1 yap.
